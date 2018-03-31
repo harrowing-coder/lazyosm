@@ -1,0 +1,109 @@
+package top_level
+
+import (
+	"fmt"
+
+	"github.com/paulmach/go.geojson"
+)
+
+func d() {
+	fmt.Println()
+}
+
+type Way struct {
+	Id   int
+	Tags map[string]interface{}
+	Info int
+	Refs []int
+}
+
+func DeepCopy(a *geojson.Feature) *geojson.Feature {
+	mymap := map[string]interface{}{}
+	ehmap := a.Properties
+	for k, v := range ehmap {
+		mymap[k] = v
+	}
+	geometry := &geojson.Geometry{}
+	*geometry = *a.Geometry
+	aa := &geojson.Feature{Properties: mymap, Geometry: geometry, ID: a.ID}
+	return aa
+}
+
+func (block *PrimitiveBlock) WriteWays(totalmap map[int]*Node) []*geojson.Feature {
+	feats := []*geojson.Feature{}
+	block.Buf.Pos = block.GroupIndex[0]
+	for block.Buf.Pos < block.GroupIndex[1] {
+		block.Buf.ReadKey()
+		endpos := block.Buf.Pos + block.Buf.ReadVarint()
+
+		//start,end := block.Buf.Pos,block.GroupIndex[1]
+
+		way := block.ReadWay()
+		line := make([][]float64, len(way.Refs))
+		for pos, ref := range way.Refs {
+			line[pos] = totalmap[ref].Point
+		}
+		block.Buf.Pos = endpos
+		feat := geojson.NewFeature(geojson.NewLineStringGeometry(line))
+		feat.Properties = way.Tags
+		feat.ID = way.Id
+		feat2 := DeepCopy(feat)
+		feats = append(feats, feat2)
+	}
+	return feats
+}
+
+func (prim *PrimitiveBlock) ReadWay() *Way {
+	key, val := prim.Buf.ReadKey()
+	way := &Way{}
+	var keys, values []uint32
+	// logic for handlign id
+	if key == 1 && val == 0 {
+		way.Id = int(int64(prim.Buf.ReadUInt64()))
+		key, val = prim.Buf.ReadKey()
+	}
+	// logic for handling tags
+	if key == 2 {
+		//fmt.Println(feature)
+		keys = prim.Buf.ReadPackedUInt32()
+		key, _ = prim.Buf.ReadKey()
+	}
+	// logic for handling features
+	if key == 3 {
+		values = prim.Buf.ReadPackedUInt32()
+		key, _ = prim.Buf.ReadKey()
+	}
+
+	way.Tags = make(map[string]interface{})
+
+	for i, keyx := range keys {
+		if len(prim.StringTable) > int(keys[i]) && len(prim.StringTable) > int(values[i]) && i < len(values) {
+			value := prim.StringTable[values[i]]
+			keyval := prim.StringTable[int(keyx)]
+			way.Tags[keyval] = value
+		}
+
+	}
+
+	if key == 4 {
+		size := prim.Buf.ReadVarint()
+		way.Info = prim.Buf.Pos
+		prim.Buf.Pos += size
+		key, _ = prim.Buf.ReadKey()
+	}
+
+	// logic for handling geometry
+	if key == 8 {
+
+		size := prim.Buf.ReadVarint()
+		endpos := prim.Buf.Pos + size
+		var x int
+		for prim.Buf.Pos < endpos {
+			x += int(prim.Buf.ReadSVarint())
+			way.Refs = append(way.Refs, x)
+		}
+
+		prim.Buf.Pos += size + 1
+	}
+	return way
+}
