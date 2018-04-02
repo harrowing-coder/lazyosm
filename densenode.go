@@ -171,18 +171,108 @@ func (prim *PrimitiveBlock) NewDenseNode() *DenseNode {
 }
 
 // parses a dense node out of a node data structure
-func LazyDenseNode(pbfval *pbf.PBF) (int, int) {
+// returns the sparse id point map
+func (d *decoder) NewDenseNodeMap(lazy *LazyPrimitiveBlock) map[int][]float64 {
+	prim := NewPrimitiveBlockLazy(pbf.NewPBF(d.ReadDataPos(lazy.FilePos)))
+	prim.Buf.Pos = prim.GroupIndex[0]
+	//prim := d.CreatePrimitiveBlock(lazy)
+	//var tu *tagUnpacker
+
+	//densenode := &DenseNode{NodeMap: map[int]*Node{}}
+	var idpbf, latpbf, longpbf *pbf.PBF
+	//fmt.Println(idpbf,longpbf,latpbf,keypbf)
+	key, val := prim.Buf.ReadKey()
+	//fmt.Println(key, val, prim.Buf.Pos)
+	if key == 1 && val == 2 {
+		// logic for getting the ids pbf here
+		size := prim.Buf.ReadVarint()
+		endpos := prim.Buf.Pos + size
+		idpbf = pbf.NewPBF(prim.Buf.Pbf[prim.Buf.Pos:endpos])
+		prim.Buf.Pos += size
+		key, val = prim.Buf.ReadKey()
+	}
+	if key == 5 && val == 2 {
+		// do some shit with dense info here
+		size := prim.Buf.ReadVarint()
+		//densenode.DenseInfo = prim.Buf.Pos
+		prim.Buf.Pos += size
+		key, val = prim.Buf.ReadKey()
+	}
+	if key == 8 && val == 2 {
+		size := prim.Buf.ReadVarint()
+		endpos := prim.Buf.Pos + size
+		latpbf = pbf.NewPBF(prim.Buf.Pbf[prim.Buf.Pos:endpos])
+		prim.Buf.Pos += size
+		key, val = prim.Buf.ReadKey()
+	}
+	if key == 9 && val == 2 {
+		size := prim.Buf.ReadVarint()
+		endpos := prim.Buf.Pos + size
+		longpbf = pbf.NewPBF(prim.Buf.Pbf[prim.Buf.Pos:endpos])
+		prim.Buf.Pos += size
+		key, val = prim.Buf.ReadKey()
+	}
+	if key == 10 && val == 2 {
+		//size := prim.Buf.ReadVarint()
+		//endpos := prim.Buf.Pos + size
+		//densenode.KeyValue = prim.Buf.Pos
+		//startpos := prim.Buf.Pos
+		prim.Buf.ReadPackedInt32()
+		//sizevals := prim.Buf.Pos - startpos
+		//lazy.TagsBool = sizevals != 8002
+		//tu = &tagUnpacker{prim.StringTable, tags, 0}
+		//prim.Buf.Pos += size
+		key, val = prim.Buf.ReadKey()
+	}
+
+	// collecting the node map
+	// this is the point of this after all
+	var id, lat, long int
+	//west, south, east, north := 180.0, 90.0, -180.0, -90.0
+	//var oldid,oldlat,oldlong int
+	//granularity_fraction := float64(config.Granularity) / float64(10e9)
+	var pt []float64
+	nodemap := map[int][]float64{}
+	//ii := 0
+	for i := 0; i < 8000 && idpbf.Pos < idpbf.Length; i++ {
+		//fmt.Println(i, idpbf.Pos, idpbf.Length)
+		//tags := tu.next()
+		id = id + int(idpbf.ReadSVarint())
+		lat = lat + int(latpbf.ReadSVarint())
+		long = long + int(longpbf.ReadSVarint())
+		// getting the point vlaue
+		//pt = []float64{ float64(config.LonOffset + (config.Granularity * long)) / (1e9 * float64(config.Granularity)),
+		//								float64(config.LatOffset + (config.Granularity * lat)) / (1e9 * float64(config.Granularity))}
+		pt = []float64{
+			(float64(prim.Config.LonOffset+(long*prim.Config.Granularity)) * 1e-9),
+			(float64(prim.Config.LatOffset+(lat*prim.Config.Granularity)) * 1e-9),
+		}
+		//fmt.Println(pt)
+
+		// adding the node to the nodemap
+		nodemap[id] = pt
+
+		//oldid,oldlat,oldlong = id,lat,long
+
+		// currently ignoring the keys for now :P
+	}
+	return nodemap
+}
+
+// parses a dense node out of a node data structure
+func LazyDenseNode(pbfval *pbf.PBF) (int, int, bool) {
 
 	var idpbf *pbf.PBF
 	//fmt.Println(idpbf,longpbf,latpbf,keypbf)
 	key, val := pbfval.ReadKey()
+	var startid, endid int
+
 	if key == 1 && val == 2 {
 		// logic for getting the ids pbf here
 		size := pbfval.ReadVarint()
 		endpos := pbfval.Pos + size
 		idpbf = pbf.NewPBF(pbfval.Pbf[pbfval.Pos:endpos])
 		id := 0
-		var startid, endid int
 		for i := 0; i < 8000 && idpbf.Pos < idpbf.Length; i++ {
 			id = id + int(idpbf.ReadSVarint())
 			if i == 0 {
@@ -190,7 +280,38 @@ func LazyDenseNode(pbfval *pbf.PBF) (int, int) {
 			}
 		}
 		endid = id
-		return startid, endid
+		pbfval.Pos = endpos
+		key, val = pbfval.ReadKey()
 	}
-	return 0, 0
+	if key == 5 && val == 2 {
+		// do some shit with dense info here
+		size := pbfval.ReadVarint()
+		//densenode.DenseInfo = pbfval.Pos
+		pbfval.Pos += size
+		key, val = pbfval.ReadKey()
+	}
+	if key == 8 && val == 2 {
+		size := pbfval.ReadVarint()
+		pbfval.Pos += size
+		key, val = pbfval.ReadKey()
+	}
+	if key == 9 && val == 2 {
+		size := pbfval.ReadVarint()
+		pbfval.Pos += size
+		key, val = pbfval.ReadKey()
+	}
+	if key == 10 && val == 2 {
+		//size := pbfval.ReadVarint()
+		//endpos := pbfval.Pos + size
+		//densenode.KeyValue = pbfval.Pos
+		startpos := pbfval.Pos
+		pbfval.ReadPackedInt32()
+		sizevals := pbfval.Pos - startpos
+		return startid, endid, 8002 != sizevals
+		//tu = &tagUnpacker{prim.StringTable, tags, 0}
+		//pbfval.Pos += size
+		//key, val = pbfval.ReadKey()
+	}
+
+	return 0, 0, false
 }

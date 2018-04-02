@@ -14,6 +14,7 @@ import (
 	"time"
 	//"github.com/paulmach/osm"
 	osmpbf "./osmpbf"
+	g "github.com/murphy214/geobuf"
 	m "github.com/murphy214/mercantile"
 )
 
@@ -58,11 +59,18 @@ type iPair struct {
 
 // A Decoder reads and decodes OpenStreetMap PBF data from an input stream.
 type decoder struct {
-	Header    *Header
-	r         io.Reader
-	bytesRead int64
-	Count     int
-	Blocks    []LazyPrimitiveBlock
+	Header     *Header
+	r          io.Reader
+	bytesRead  int64
+	Count      int
+	DenseNodes map[int]*LazyPrimitiveBlock
+	Ways       map[int]*LazyPrimitiveBlock
+	Relations  map[int]*LazyPrimitiveBlock
+	Nodes      map[int]*LazyPrimitiveBlock
+	IdMap      *IdMap
+	NodeMap    *NodeMap
+	Limit      int
+	Geobuf     *g.Writer
 
 	cancel func()
 	wg     sync.WaitGroup
@@ -76,10 +84,18 @@ type decoder struct {
 }
 
 // newDecoder returns a new decoder that reads from r.
-func NewDecoder(f *os.File) *decoder {
+func NewDecoder(f *os.File, limit int) *decoder {
 	return &decoder{
-		r: f,
-		f: f,
+		r:          f,
+		f:          f,
+		DenseNodes: map[int]*LazyPrimitiveBlock{},
+		Ways:       map[int]*LazyPrimitiveBlock{},
+		Relations:  map[int]*LazyPrimitiveBlock{},
+		Nodes:      map[int]*LazyPrimitiveBlock{},
+		NodeMap:    NewNodeMap(limit),
+		IdMap:      NewIdMap(),
+		Geobuf:     g.WriterFileNew("a.geobuf"),
+		Limit:      limit,
 	}
 }
 
@@ -106,8 +122,17 @@ func (dec *decoder) ReadDataPos(pos [2]int) []byte {
 	return data
 }
 
-func ReadDecoder(f *os.File) *decoder {
-	d := NewDecoder(f)
+func (dec *decoder) ReadBlock(lazyprim LazyPrimitiveBlock) *osmpbf.PrimitiveBlock {
+	primblock := &osmpbf.PrimitiveBlock{}
+	err := proto.Unmarshal(dec.ReadDataPos(lazyprim.FilePos), primblock)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return primblock
+}
+
+func ReadDecoder(f *os.File, limit int) *decoder {
+	d := NewDecoder(f, limit)
 	sizeBuf := make([]byte, 4)
 	headerBuf := make([]byte, MaxBlobHeaderSize)
 	blobBuf := make([]byte, MaxBlobSize)
@@ -128,12 +153,13 @@ func ReadDecoder(f *os.File) *decoder {
 	for boolval {
 		d.Count++
 		_, _, _ = d.ReadFileBlock(sizeBuf, headerBuf, blobBuf)
-
-		if len(d.Blocks) == oldsize {
+		size := len(d.DenseNodes) + len(d.Ways) + len(d.Relations)
+		if size == oldsize {
 			boolval = false
 		}
-		oldsize = len(d.Blocks)
+		oldsize = size
 	}
+
 	return d
 }
 
@@ -159,7 +185,18 @@ func (dec *decoder) ReadFileBlock(sizeBuf, headerBuf, blobBuf []byte) (*osmpbf.B
 	//dec.DataIndexs = append(dec.DataIndexs, index)
 	primblock := ReadLazyPrimitiveBlock(pbf.NewPBF(dec.ReadDataPos(index)))
 	primblock.Position = dec.Count
-	dec.Blocks = append(dec.Blocks, primblock)
+	primblock.FilePos = index
+	switch primblock.Type {
+	case "DenseNodes":
+		dec.DenseNodes[primblock.Position] = &primblock
+		dec.IdMap.AddBlock(&primblock)
+	case "Ways":
+		dec.Ways[primblock.Position] = &primblock
+	case "Relations":
+		dec.Relations[primblock.Position] = &primblock
+	case "Nodes":
+		dec.Nodes[primblock.Position] = &primblock
+	}
 
 	dec.bytesRead += int64(blobHeader.GetDatasize())
 	return blobHeader, blob, nil

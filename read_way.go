@@ -2,7 +2,7 @@ package top_level
 
 import (
 	"fmt"
-
+	"github.com/murphy214/pbf"
 	"github.com/paulmach/go.geojson"
 )
 
@@ -51,6 +51,11 @@ func (block *PrimitiveBlock) WriteWays(totalmap map[int]*Node) []*geojson.Featur
 		feats = append(feats, feat2)
 	}
 	return feats
+}
+
+// create primive block
+func (d *decoder) CreatePrimitiveBlock(lazy *LazyPrimitiveBlock) *PrimitiveBlock {
+	return &PrimitiveBlock{Buf: pbf.NewPBF(d.ReadDataPos(lazy.FilePos)), GroupIndex: lazy.BufPos, GroupType: 3}
 }
 
 func (prim *PrimitiveBlock) ReadWay() *Way {
@@ -106,4 +111,96 @@ func (prim *PrimitiveBlock) ReadWay() *Way {
 		prim.Buf.Pos += size + 1
 	}
 	return way
+}
+
+func (d *decoder) ReadWaysLazy(lazy *LazyPrimitiveBlock, idmap *IdMap) map[int]string {
+	prim := d.CreatePrimitiveBlock(lazy)
+	prim.Buf.Pos = prim.GroupIndex[0]
+	mymap := map[int]string{}
+
+	for prim.Buf.Pos < prim.GroupIndex[1] {
+		prim.Buf.ReadKey()
+		endpos2 := prim.Buf.Pos + prim.Buf.ReadVarint()
+
+		key, val := prim.Buf.ReadKey()
+		//var keys, values []uint32
+		// logic for handlign id
+		if key == 1 && val == 0 {
+			prim.Buf.ReadUInt64()
+			key, val = prim.Buf.ReadKey()
+		}
+		// logic for handling tags
+		if key == 2 {
+			//fmt.Println(feature)
+			size := prim.Buf.ReadVarint()
+			prim.Buf.Pos += size
+			//keys = prim.Buf.ReadPackedUInt32()
+			key, _ = prim.Buf.ReadKey()
+		}
+		// logic for handling features
+		if key == 3 {
+			size := prim.Buf.ReadVarint()
+			prim.Buf.Pos += size
+			key, _ = prim.Buf.ReadKey()
+		}
+
+		if key == 4 {
+			size := prim.Buf.ReadVarint()
+			prim.Buf.Pos += size
+			key, _ = prim.Buf.ReadKey()
+		}
+
+		// logic for handling geometry
+		if key == 8 {
+
+			size := prim.Buf.ReadVarint()
+			endpos := prim.Buf.Pos + size
+			var x int
+			for prim.Buf.Pos < endpos {
+				x += int(prim.Buf.ReadSVarint())
+				//way.Refs = append(way.Refs, x)
+				position := idmap.GetBlock(x)
+				mymap[position] = ""
+			}
+
+			prim.Buf.Pos += size + 1
+		}
+		prim.Buf.Pos = endpos2
+	}
+	return mymap
+}
+
+// syncs the nodemap against a give way block and flushes old
+// node maps out of memory if needed
+func (d *decoder) SyncWaysNodeMap(lazy *LazyPrimitiveBlock, idmap *IdMap) {
+	keymap := d.ReadWaysLazy(lazy, idmap)
+	keylist := make([]int, len(keymap))
+	i := 0
+	for k := range keymap {
+		keylist[i] = k
+		i++
+	}
+	d.AddUpdates(keylist)
+}
+
+// syncs the nodemap against a give way block and flushes old
+// node maps out of memory if needed
+func (d *decoder) SyncWaysNodeMapMultiple(lazys []*LazyPrimitiveBlock, idmap *IdMap) {
+	keymap := map[int]string{}
+	for _, lazy := range lazys {
+		tempkeymap := d.ReadWaysLazy(lazy, idmap)
+		for k, v := range tempkeymap {
+			keymap[k] = v
+		}
+	}
+	keylist := make([]int, len(keymap))
+	i := 0
+	for k := range keymap {
+		keylist[i] = k
+		i++
+	}
+	if len(keylist) > d.Limit {
+		fmt.Println(len(keylist), "difs")
+	}
+	d.AddUpdates(keylist)
 }

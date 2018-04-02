@@ -69,6 +69,7 @@ type LazyPrimitiveBlock struct {
 	FilePos  [2]int // file position
 	BufPos   [2]int // the positon of the block
 	Position int    // position in which the block occurs within the file
+	TagsBool bool
 }
 
 func ReadLazyPrimitiveBlock(pbfval *pbf.PBF) LazyPrimitiveBlock {
@@ -114,10 +115,54 @@ func ReadLazyPrimitiveBlock(pbfval *pbf.PBF) LazyPrimitiveBlock {
 		}
 		lazyblock.BufPos = [2]int{pbfval.Pos, endpos}
 		if lazyblock.Type == "DenseNodes" {
-			start, end := LazyDenseNode(pbfval)
+			start, end, boolval := LazyDenseNode(pbfval)
 			lazyblock.IdRange = [2]int{start, end}
+			lazyblock.TagsBool = boolval
 		}
 	}
 
 	return lazyblock
+}
+
+func NewPrimitiveBlockLazy(pbfval *pbf.PBF) *PrimitiveBlock {
+	primblock := &PrimitiveBlock{}
+	//var endpos int
+
+	key, val := pbfval.ReadKey()
+	if key == 1 && val == 2 {
+
+		size := pbfval.ReadVarint()
+		endpos := pbfval.Pos + size
+		pbfval.Pos = endpos
+		//primblock.StringTable = pbfval.ReadPackedString()
+		key, val = pbfval.ReadKey()
+	}
+	if key == 2 && val == 2 {
+		//pbfval.Byte()
+		//fmt.Println(pbfval.ReadVarint())
+		//fmt.Println(pbfval.ReadKey())
+
+		// iterating through each pbf group
+		endpos := pbfval.Pos + pbfval.ReadVarint()
+		grouptype, _ := pbfval.ReadKey()
+		if grouptype == 2 {
+			pbfval.ReadVarint()
+		} else if grouptype == 3 {
+			pbfval.Pos -= 1
+		}
+		//fmt.Println(pbfval.Pos, pbfval.Length)
+
+		primblock.GroupIndex = [2]int{pbfval.Pos, endpos}
+
+		primblock.GroupType = int(grouptype)
+		pbfval.Pos = endpos
+		key, val = pbfval.ReadKey()
+	}
+	if key == 100 {
+		primblock.Config = NewConfig()
+	}
+
+	primblock.Buf = pbfval
+
+	return primblock
 }
