@@ -1,6 +1,8 @@
 package top_level
 
-func (d *decoder) ReadRelationsLazy(lazy *LazyPrimitiveBlock, idmap *IdMap) map[int]int {
+//import "fmt"
+
+func (d *decoder) ReadRelationsLazy(lazy *LazyPrimitiveBlock) map[int]int {
 	prim := d.CreatePrimitiveBlock(lazy)
 	prim.Buf.Pos = prim.GroupIndex[0]
 	mymap := map[int]int{}
@@ -53,11 +55,10 @@ func (d *decoder) ReadRelationsLazy(lazy *LazyPrimitiveBlock, idmap *IdMap) map[
 			for prim.Buf.Pos < endpos {
 				x += int(prim.Buf.ReadSVarint())
 				//way.Refs = append(way.Refs, x)
-				mymap[x] = 0
+				mymap[d.WayIdMap.GetBlock(x)] = 0
 			}
 
 		}
-
 		prim.Buf.Pos = endpos2
 	}
 	return mymap

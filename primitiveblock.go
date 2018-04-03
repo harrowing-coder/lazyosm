@@ -118,7 +118,11 @@ func ReadLazyPrimitiveBlock(pbfval *pbf.PBF) LazyPrimitiveBlock {
 			start, end, boolval := LazyDenseNode(pbfval)
 			lazyblock.IdRange = [2]int{start, end}
 			lazyblock.TagsBool = boolval
+		} else if lazyblock.Type == "Ways" {
+			start, end := LazyWayRange(pbfval)
+			lazyblock.IdRange = [2]int{start, end}
 		}
+
 	}
 
 	return lazyblock

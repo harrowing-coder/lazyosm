@@ -170,6 +170,129 @@ func (d *decoder) ReadWaysLazy(lazy *LazyPrimitiveBlock, idmap *IdMap) map[int]s
 	return mymap
 }
 
+//
+func (d *decoder) ReadWaysLazyList(lazy *LazyPrimitiveBlock, ids []int) map[int][]int {
+	idmap := map[int]string{}
+	for _, i := range ids {
+		idmap[i] = ""
+	}
+
+	prim := d.CreatePrimitiveBlock(lazy)
+	prim.Buf.Pos = prim.GroupIndex[0]
+	mymap := map[int][]int{}
+	var boolval bool
+	var id int
+	for prim.Buf.Pos < prim.GroupIndex[1] {
+		prim.Buf.ReadKey()
+		endpos2 := prim.Buf.Pos + prim.Buf.ReadVarint()
+
+		key, val := prim.Buf.ReadKey()
+		//var keys, values []uint32
+		// logic for handlign id
+		if key == 1 && val == 0 {
+			id = int(prim.Buf.ReadUInt64())
+			_, boolval = idmap[id]
+			key, val = prim.Buf.ReadKey()
+		}
+		// logic for handling tags
+		if key == 2 {
+			//fmt.Println(feature)
+			size := prim.Buf.ReadVarint()
+			prim.Buf.Pos += size
+			//keys = prim.Buf.ReadPackedUInt32()
+			key, _ = prim.Buf.ReadKey()
+		}
+		// logic for handling features
+		if key == 3 {
+			size := prim.Buf.ReadVarint()
+			prim.Buf.Pos += size
+			key, _ = prim.Buf.ReadKey()
+		}
+
+		if key == 4 {
+			size := prim.Buf.ReadVarint()
+			prim.Buf.Pos += size
+			key, _ = prim.Buf.ReadKey()
+		}
+
+		// logic for handling geometry
+		if key == 8 {
+
+			size := prim.Buf.ReadVarint()
+			endpos := prim.Buf.Pos + size
+			if boolval {
+				var x int
+				var xlist []int
+				for prim.Buf.Pos < endpos {
+					x += int(prim.Buf.ReadSVarint())
+					//way.Refs = append(way.Refs, x)
+					xlist = append(xlist, x)
+				}
+				prim.Buf.Pos += size + 1
+				mymap[id] = xlist
+			} else {
+				prim.Buf.Pos = endpos
+			}
+
+		}
+		prim.Buf.Pos = endpos2
+	}
+	return mymap
+}
+
+func LazyWayRange(pbfval *pbf.PBF) (int, int) {
+
+	var start, pos, id int
+	for pbfval.Pos < pbfval.Length {
+		pbfval.ReadKey()
+		endpos2 := pbfval.Pos + pbfval.ReadVarint()
+
+		key, val := pbfval.ReadKey()
+		//var keys, values []uint32
+		// logic for handlign id
+		if key == 1 && val == 0 {
+			id = int(pbfval.ReadUInt64())
+			if pos == 0 {
+				start = id
+			}
+			//fmt.Println(id)
+			key, val = pbfval.ReadKey()
+		}
+		// logic for handling tags
+		if key == 2 {
+			//fmt.Println(feature)
+			size := pbfval.ReadVarint()
+			pbfval.Pos += size
+			//keys = pbfval.ReadPackedUInt32()
+			key, _ = pbfval.ReadKey()
+		}
+		// logic for handling features
+		if key == 3 {
+			size := pbfval.ReadVarint()
+			pbfval.Pos += size
+			key, _ = pbfval.ReadKey()
+		}
+
+		if key == 4 {
+			size := pbfval.ReadVarint()
+			pbfval.Pos += size
+			key, _ = pbfval.ReadKey()
+		}
+
+		// logic for handling geometry
+		if key == 8 {
+
+			size := pbfval.ReadVarint()
+			endpos := pbfval.Pos + size
+			pbfval.Pos = endpos
+		}
+		pbfval.Pos = endpos2
+		pos++
+	}
+
+	return start, id
+}
+
 // syncs the nodemap against a give way block and flushes old
 // node maps out of memory if needed
 func (d *decoder) SyncWaysNodeMap(lazy *LazyPrimitiveBlock, idmap *IdMap) {

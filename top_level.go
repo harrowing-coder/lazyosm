@@ -68,6 +68,7 @@ type decoder struct {
 	Relations   map[int]*LazyPrimitiveBlock
 	Nodes       map[int]*LazyPrimitiveBlock
 	IdMap       *IdMap
+	WayIdMap    *IdMap
 	NodeMap     *NodeMap
 	RelationMap map[int]int
 	Limit       int
@@ -95,6 +96,7 @@ func NewDecoder(f *os.File, limit int) *decoder {
 		Nodes:       map[int]*LazyPrimitiveBlock{},
 		NodeMap:     NewNodeMap(limit),
 		IdMap:       NewIdMap(),
+		WayIdMap:    NewIdMap(),
 		RelationMap: map[int]int{},
 		Geobuf:      g.WriterFileNew("a.geobuf"),
 		Limit:       limit,
@@ -194,6 +196,8 @@ func (dec *decoder) ReadFileBlock(sizeBuf, headerBuf, blobBuf []byte) (*osmpbf.B
 		dec.IdMap.AddBlock(&primblock)
 	case "Ways":
 		dec.Ways[primblock.Position] = &primblock
+		fmt.Println(primblock.IdRange)
+		dec.WayIdMap.AddBlock(&primblock)
 	case "Relations":
 		dec.Relations[primblock.Position] = &primblock
 	case "Nodes":

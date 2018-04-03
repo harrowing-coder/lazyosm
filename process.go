@@ -7,6 +7,8 @@ import (
 	"github.com/paulmach/go.geojson"
 	"sync"
 	//"io/ioutil"
+	"fmt"
+	"sort"
 )
 
 func (d *decoder) ProcessBlock(lazy *LazyPrimitiveBlock) {
@@ -129,6 +131,7 @@ func (d *decoder) ProcessDenseNode(lazy *LazyPrimitiveBlock) {
 	}
 }
 
+//
 func (d *decoder) ProcessMultipleDenseNode(is []*LazyPrimitiveBlock) {
 	var wg sync.WaitGroup
 	for _, lazy := range is {
@@ -139,4 +142,98 @@ func (d *decoder) ProcessMultipleDenseNode(is []*LazyPrimitiveBlock) {
 		}(lazy)
 	}
 	wg.Wait()
+}
+
+// sorts the keys of a map
+func SortKeys(mymap map[int]*LazyPrimitiveBlock) []int {
+	i := 0
+	newlist := make([]int, len(mymap))
+	for k := range mymap {
+		newlist[i] = k
+		i++
+	}
+	sort.Ints(newlist)
+	return newlist
+}
+
+func Connect_Members(members [][]int) [][]int {
+	nodebool := false
+	var totalnodeids [][]int
+	for nodebool == false {
+		totalnodeids = [][]int{}
+		nodebool = true
+		for ii, oldnodeids := range members {
+			olds := oldnodeids[0]
+			olde := oldnodeids[len(oldnodeids)-1]
+			valbool := false
+			for i, nodeids := range members {
+				s := nodeids[0]
+				e := nodeids[len(nodeids)-1]
+				if i != ii && valbool == false {
+					if s == olde {
+						newnodeids := append(oldnodeids, nodeids...)
+						totalnodeids = append(totalnodeids, newnodeids)
+						valbool = true
+						if newnodeids[0] != newnodeids[len(newnodeids)-1] {
+							nodebool = false
+						}
+					} else if olds == e {
+						newnodeids := append(nodeids, oldnodeids...)
+						totalnodeids = append(totalnodeids, newnodeids)
+						valbool = true
+						if newnodeids[0] != newnodeids[len(newnodeids)-1] {
+							nodebool = false
+						}
+					}
+				}
+			}
+
+		}
+		members = totalnodeids
+	}
+
+	return totalnodeids
+}
+
+func (d *decoder) ProcessFile() {
+	is := []*LazyPrimitiveBlock{}
+	sizedensenodes := len(d.DenseNodes)
+	count := 0
+
+	// processing dense nodes (points)
+	for pos, i := range d.DenseNodes {
+		if i.TagsBool {
+			is = append(is, i)
+			if len(is) == 5 || pos == sizedensenodes-1 {
+				d.ProcessMultipleDenseNode(is)
+				is = []*LazyPrimitiveBlock{}
+			}
+
+		}
+		count += 1
+		fmt.Printf("\r[%d/%d] Dense Node Blocks Completed", count, sizedensenodes)
+	}
+
+	fmt.Println("Completed Points")
+
+	size := len(d.Ways)
+	waylist := SortKeys(d.Ways)
+	pos := 0
+	is = []*LazyPrimitiveBlock{}
+
+	for _, key := range waylist {
+		//tempmap := d.ReadWaysLazyRelations(i, d.IdMap))
+		i := d.Ways[key]
+		is = append(is, i)
+		if len(is) == 5 || pos == size-1 {
+			d.SyncWaysNodeMapMultiple(is, d.IdMap)
+			d.ProcessMultiple(is)
+			is = []*LazyPrimitiveBlock{}
+		}
+
+		//count += 1
+		pos += 1
+		fmt.Printf("\r[%d/%d] Way Blocks Completed", pos, size)
+	}
+
 }
