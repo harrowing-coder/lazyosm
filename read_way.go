@@ -199,8 +199,6 @@ func (d *decoder) SyncWaysNodeMapMultiple(lazys []*LazyPrimitiveBlock, idmap *Id
 		keylist[i] = k
 		i++
 	}
-	if len(keylist) > d.Limit {
-		fmt.Println(len(keylist), "difs")
-	}
+
 	d.AddUpdates(keylist)
 }

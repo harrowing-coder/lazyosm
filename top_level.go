@@ -59,18 +59,19 @@ type iPair struct {
 
 // A Decoder reads and decodes OpenStreetMap PBF data from an input stream.
 type decoder struct {
-	Header     *Header
-	r          io.Reader
-	bytesRead  int64
-	Count      int
-	DenseNodes map[int]*LazyPrimitiveBlock
-	Ways       map[int]*LazyPrimitiveBlock
-	Relations  map[int]*LazyPrimitiveBlock
-	Nodes      map[int]*LazyPrimitiveBlock
-	IdMap      *IdMap
-	NodeMap    *NodeMap
-	Limit      int
-	Geobuf     *g.Writer
+	Header      *Header
+	r           io.Reader
+	bytesRead   int64
+	Count       int
+	DenseNodes  map[int]*LazyPrimitiveBlock
+	Ways        map[int]*LazyPrimitiveBlock
+	Relations   map[int]*LazyPrimitiveBlock
+	Nodes       map[int]*LazyPrimitiveBlock
+	IdMap       *IdMap
+	NodeMap     *NodeMap
+	RelationMap map[int]int
+	Limit       int
+	Geobuf      *g.Writer
 
 	cancel func()
 	wg     sync.WaitGroup
@@ -86,16 +87,17 @@ type decoder struct {
 // newDecoder returns a new decoder that reads from r.
 func NewDecoder(f *os.File, limit int) *decoder {
 	return &decoder{
-		r:          f,
-		f:          f,
-		DenseNodes: map[int]*LazyPrimitiveBlock{},
-		Ways:       map[int]*LazyPrimitiveBlock{},
-		Relations:  map[int]*LazyPrimitiveBlock{},
-		Nodes:      map[int]*LazyPrimitiveBlock{},
-		NodeMap:    NewNodeMap(limit),
-		IdMap:      NewIdMap(),
-		Geobuf:     g.WriterFileNew("a.geobuf"),
-		Limit:      limit,
+		r:           f,
+		f:           f,
+		DenseNodes:  map[int]*LazyPrimitiveBlock{},
+		Ways:        map[int]*LazyPrimitiveBlock{},
+		Relations:   map[int]*LazyPrimitiveBlock{},
+		Nodes:       map[int]*LazyPrimitiveBlock{},
+		NodeMap:     NewNodeMap(limit),
+		IdMap:       NewIdMap(),
+		RelationMap: map[int]int{},
+		Geobuf:      g.WriterFileNew("a.geobuf"),
+		Limit:       limit,
 	}
 }
 

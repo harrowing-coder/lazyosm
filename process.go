@@ -77,3 +77,66 @@ func (d *decoder) ProcessMultiple(lazys []*LazyPrimitiveBlock) {
 	}
 	wg.Wait()
 }
+
+// Make tags map from stringtable and two parallel arrays of IDs.
+func extractTags(stringTable []string, keyIDs, valueIDs []uint32) map[string]string {
+	tags := make(map[string]string, len(keyIDs))
+	for index, keyID := range keyIDs {
+		key := stringTable[keyID]
+		val := stringTable[valueIDs[index]]
+		tags[key] = val
+	}
+	return tags
+}
+
+// takes a lazy primitive block and process the points out of it
+func (d *decoder) ProcessDenseNode(lazy *LazyPrimitiveBlock) {
+	pb := d.ReadBlock(*lazy)
+	dn := pb.Primitivegroup[0].Dense
+
+	st := pb.GetStringtable().GetS()
+	granularity := int64(pb.GetGranularity())
+	latOffset := pb.GetLatOffset()
+	lonOffset := pb.GetLonOffset()
+	//dateGranularity := int64(pb.GetDateGranularity())
+	ids := dn.GetId()
+	lats := dn.GetLat()
+	lons := dn.GetLon()
+	//di := dn.GetDenseinfo()
+
+	tu := tagUnpacker{st, dn.GetKeysVals(), 0}
+	var id, lat, lon int64
+	for index := range ids {
+		id = ids[index] + id
+		lat = lats[index] + lat
+		lon = lons[index] + lon
+		latitude := 1e-9 * float64((latOffset + (granularity * lat)))
+		longitude := 1e-9 * float64((lonOffset + (granularity * lon)))
+		tags := tu.next()
+		//info := extractDenseInfo(st, &state, di, index, dateGranularity)
+		if len(tags) != 0 {
+			//id, latitude, longitude, tags
+			mymap := map[string]interface{}{"id": id}
+			for k, v := range tags {
+				mymap[k] = v
+			}
+
+			feature := geojson.NewPointFeature([]float64{longitude, latitude})
+			feature.Properties = mymap
+			d.Geobuf.WriteFeature(feature)
+		}
+		//dec.q = append(dec.q, &Node{id, latitude, longitude, tags, info})
+	}
+}
+
+func (d *decoder) ProcessMultipleDenseNode(is []*LazyPrimitiveBlock) {
+	var wg sync.WaitGroup
+	for _, lazy := range is {
+		wg.Add(1)
+		go func(lazy *LazyPrimitiveBlock) {
+			d.ProcessDenseNode(lazy)
+			wg.Done()
+		}(lazy)
+	}
+	wg.Wait()
+}

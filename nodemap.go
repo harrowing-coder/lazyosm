@@ -127,10 +127,22 @@ func (d *decoder) AddUpdates(stringval []int) {
 			hits.HitMap[k] = v + size
 		}
 	}
+	//fmt.Println(len(dups), len(stringval))
+	//fmt.Println(stringval)
+	if len(dups)+len(stringval) > hits.Limit {
+		for k := range hits.HitMap {
+			_, boolval := dupmap[k]
+			if !boolval {
+				delete(hits.HitMap, k)
+				delete(hits.NodeMap, k)
+			}
+		}
 
-	if hits.Limit < len(hits.HitMap)+len(stringval) {
+	} else if hits.Limit < len(stringval) {
+		hits = &NodeMap{NodeMap: map[int]map[int][]float64{}, HitMap: map[int]int{}, Limit: hits.Limit}
+		//fmt.Println("allowing to exceed limit to accomade new", len(stringval))
+	} else if hits.Limit < len(hits.HitMap)+len(stringval) {
 		number_to_remove := len(hits.HitMap) + len(stringval) - hits.Limit
-
 		intlist := make([]int, len(hits.HitMap))
 		intmap := map[int]int{}
 		i := 0
@@ -141,7 +153,7 @@ func (d *decoder) AddUpdates(stringval []int) {
 		}
 
 		sort.Ints(intlist)
-
+		//fmt.Println(number_to_remove)
 		// getting the ints to remove
 		remove_ints := intlist[len(intlist)-number_to_remove:]
 
@@ -158,16 +170,20 @@ func (d *decoder) AddUpdates(stringval []int) {
 
 	} else {
 		number_add := len(stringval)
+
 		for k, v := range hits.HitMap {
 			hits.HitMap[k] = v + number_add
 		}
+
 	}
-	d.NodeMap = hits
 	// finally reading each added value concurrently
 	c := make(chan OutputStruct)
 	for i, intval := range stringval {
 		lazy, boolval := d.DenseNodes[intval]
-
+		//fmt.Println(lazy, boolval)
+		//lazy = &LazyPrimitiveBlock{Position: intval}
+		//lazy.Position = intval
+		//boolval = true
 		go func(i int, lazy *LazyPrimitiveBlock, boolval bool, c chan OutputStruct) {
 			if !boolval {
 				c <- OutputStruct{}
@@ -185,9 +201,13 @@ func (d *decoder) AddUpdates(stringval []int) {
 	for range stringval {
 		output := <-c
 		if output.Position != 0 {
-			d.NodeMap.NodeMap[output.Position] = output.Map
-			d.NodeMap.HitMap[output.Position] = output.Priority
+			hits.NodeMap[output.Position] = output.Map
+			hits.HitMap[output.Position] = output.Priority
 		}
 	}
+
+	d.NodeMap = hits
+
+	//fmt.Println(len(d.NodeMap.NodeMap))
 
 }
