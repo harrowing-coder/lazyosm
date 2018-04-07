@@ -243,6 +243,24 @@ func (d *decoder) ProcessFile() {
 		count += 1
 		fmt.Printf("\r[%d/%d] Dense Node Blocks Completed", count, sizedensenodes)
 	}
+	count = 0
+	waylist := SortKeys(d.Ways)
+	size := len(waylist)
+	pos := 0
+	for _, key := range waylist {
+		//tempmap := d.ReadWaysLazyRelations(i, d.IdMap))
+		i := d.Ways[key]
+		is = append(is, i)
+		if len(is) == 3 || pos == size-1 {
+			d.SyncWaysNodeMapMultiple(is, d.IdMap)
+			d.ProcessMultipleWays(is)
+			is = []*LazyPrimitiveBlock{}
+		}
+
+		count += 1
+		pos += 1
+		fmt.Printf("\r[%d/%d] Dense Node Blocks Completed", count, size)
+	}
 
 	fmt.Println("Completed Points")
 
