@@ -17,6 +17,7 @@ type Way struct {
 	Refs []int
 }
 
+// a deep copy
 func DeepCopy(a *geojson.Feature) *geojson.Feature {
 	mymap := map[string]interface{}{}
 	ehmap := a.Properties
@@ -58,6 +59,7 @@ func (d *decoder) CreatePrimitiveBlock(lazy *LazyPrimitiveBlock) *PrimitiveBlock
 	return &PrimitiveBlock{Buf: pbf.NewPBF(d.ReadDataPos(lazy.FilePos)), GroupIndex: lazy.BufPos, GroupType: 3}
 }
 
+// read ways
 func (prim *PrimitiveBlock) ReadWay() *Way {
 	key, val := prim.Buf.ReadKey()
 	way := &Way{}

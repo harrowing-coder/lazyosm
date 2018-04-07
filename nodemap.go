@@ -72,7 +72,7 @@ func (d *decoder) AddUpdate(position int) {
 	}
 }
 
-var debug = false
+var debug = true
 
 // gets the node for a given relationship
 func (d *decoder) GetNode(id int) []float64 {

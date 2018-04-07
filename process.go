@@ -11,7 +11,7 @@ import (
 	"sort"
 )
 
-func (d *decoder) ProcessBlock(lazy *LazyPrimitiveBlock) {
+func (d *decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
 	//fmt.Println(i)
 	block := d.ReadBlock(*lazy)
 	//fmt.Println("here")
@@ -42,16 +42,25 @@ func (d *decoder) ProcessBlock(lazy *LazyPrimitiveBlock) {
 					oldref = ref
 				}
 
+				closedbool := false
+				// checking if closed way
+				if newrefs[0] == newrefs[len(newrefs)-1] {
+					closedbool = true
+				}
+
+				if closedbool == true && mymap[`area`] == `yes` {
+
+				}
+
 				line := make([][]float64, len(newrefs))
 
 				for pos, i := range newrefs {
 					line[pos] = d.GetNode(i)
 				}
+
 				feature := geojson.NewLineStringFeature(line)
 				feature.Properties = mymap
-				//feature.Geometry.Type = "LineString"
-				//features = append(features, feature)
-				//fmt.Println(feature)
+
 				d.Geobuf.WriteFeature(feature)
 				//count += 1
 
@@ -68,12 +77,12 @@ func (d *decoder) ProcessBlock(lazy *LazyPrimitiveBlock) {
 }
 
 // proces multiple
-func (d *decoder) ProcessMultiple(lazys []*LazyPrimitiveBlock) {
+func (d *decoder) ProcessMultipleWays(lazys []*LazyPrimitiveBlock) {
 	var wg sync.WaitGroup
 	for _, lazy := range lazys {
 		wg.Add(1)
 		go func(lazy *LazyPrimitiveBlock) {
-			d.ProcessBlock(lazy)
+			d.ProcessBlockWay(lazy)
 			wg.Done()
 		}(lazy)
 	}
@@ -195,6 +204,27 @@ func Connect_Members(members [][]int) [][]int {
 	return totalnodeids
 }
 
+// this reads ways from a decoder
+func (d *decoder) ReadWays() {
+	size := len(d.Ways)
+	waylist := SortKeys(d.Ways)
+	pos := 0
+	is := []*LazyPrimitiveBlock{}
+
+	for _, key := range waylist {
+		i := d.Ways[key]
+		is = append(is, i)
+		if len(is) == 5 || pos == size-1 {
+			d.SyncWaysNodeMapMultiple(is, d.IdMap)
+			d.ProcessMultipleWays(is)
+			is = []*LazyPrimitiveBlock{}
+		}
+		pos += 1
+		fmt.Printf("\r[%d/%d] Way Blocks Completed", pos, size)
+	}
+}
+
+// processes the osm pbf file
 func (d *decoder) ProcessFile() {
 	is := []*LazyPrimitiveBlock{}
 	sizedensenodes := len(d.DenseNodes)
@@ -215,25 +245,5 @@ func (d *decoder) ProcessFile() {
 	}
 
 	fmt.Println("Completed Points")
-
-	size := len(d.Ways)
-	waylist := SortKeys(d.Ways)
-	pos := 0
-	is = []*LazyPrimitiveBlock{}
-
-	for _, key := range waylist {
-		//tempmap := d.ReadWaysLazyRelations(i, d.IdMap))
-		i := d.Ways[key]
-		is = append(is, i)
-		if len(is) == 5 || pos == size-1 {
-			d.SyncWaysNodeMapMultiple(is, d.IdMap)
-			d.ProcessMultiple(is)
-			is = []*LazyPrimitiveBlock{}
-		}
-
-		//count += 1
-		pos += 1
-		fmt.Printf("\r[%d/%d] Way Blocks Completed", pos, size)
-	}
 
 }
