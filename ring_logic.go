@@ -7,7 +7,10 @@ import (
 	"github.com/paulmach/go.geojson"
 	"io/ioutil"
 	"math/rand"
+	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 )
 
 var colorkeys = []string{"#0030E5", "#0042E4", "#0053E4", "#0064E4", "#0075E4", "#0186E4", "#0198E3", "#01A8E3", "#01B9E3", "#01CAE3", "#02DBE3", "#02E2D9", "#02E2C8", "#02E2B7", "#02E2A6", "#03E295", "#03E184", "#03E174", "#03E163", "#03E152", "#04E142", "#04E031", "#04E021", "#04E010", "#09E004", "#19E005", "#2ADF05", "#3BDF05", "#4BDF05", "#5BDF05", "#6CDF06", "#7CDE06", "#8CDE06", "#9DDE06", "#ADDE06", "#BDDE07", "#CDDD07", "#DDDD07", "#DDCD07", "#DDBD07", "#DCAD08", "#DC9D08", "#DC8D08", "#DC7D08", "#DC6D08", "#DB5D09", "#DB4D09", "#DB3D09", "#DB2E09", "#DB1E09", "#DB0F0A"}
@@ -141,8 +144,10 @@ func Connect(members [][]int) [][]int {
 			membermap[pos] = member
 		}
 	}
+	//fmt.Println(len(membermap), "membermap")
+
 	generation := 0
-	for len(membermap) > 2 && generation < 10 {
+	for len(membermap) > 2 && generation < 100 {
 
 		for _, k := range SortedMap(membermap) {
 			member, boolval1 := membermap[k]
@@ -151,19 +156,30 @@ func Connect(members [][]int) [][]int {
 				lastpt := member[len(member)-1]
 				for _, ktry := range SortedMap(membermap) {
 					trymember, boolval2 := membermap[ktry]
+					//twomember := len(member) == 2
+
 					if boolval2 {
 						if k != ktry && boolval == true {
 							if lastpt == trymember[0] {
+
 								if len(membermap) == 2 {
 									//membermap[k] = append(member, trymember...)
 
 								} else {
 									membermap[k] = append(member, trymember...)
 
+									delete(membermap, ktry)
+
 								}
 
+								//if twomember && len(membermap) == 2 {
+
+								//} else {
+								//delete(membermap, ktry)
+								//}
+
 								//membermap[k] = append(member, trymember...)
-								delete(membermap, ktry)
+								//delete(membermap, ktry)
 								boolval = true
 								//fmt.Println(len(membermap[k]), len(membermap))
 							}
@@ -171,9 +187,11 @@ func Connect(members [][]int) [][]int {
 					}
 				}
 			}
-			generation += 1
 		}
+		generation += 1
+
 	}
+	//fmt.Println(len(membermap), "membermap")
 
 	generation = 0
 	for len(membermap) > 2 && generation < 100 {
@@ -187,6 +205,8 @@ func Connect(members [][]int) [][]int {
 					trymember, boolval2 := membermap[ktry]
 					if boolval2 {
 						if k != ktry && boolval == false {
+							twomember := len(member) == 2 && len(membermap) <= 4
+
 							if len(membermap) == 2 {
 								if member[len(member)-1] != trymember[0] {
 									membermap[k] = append(member, Reverse(trymember)...)
@@ -197,22 +217,25 @@ func Connect(members [][]int) [][]int {
 								delete(membermap, ktry)
 							}
 
-							if member[0] == trymember[0] {
+							if member[0] == trymember[0] && !twomember {
 								//membermap[ktry] = append(trymember, member...)
 								membermap[ktry] = Reverse(trymember)
 								//delete(membermap, k)
-
-							} else if member[len(member)-1] == trymember[len(trymember)-1] {
+								boolval = true
+							} else if member[len(member)-1] == trymember[len(trymember)-1] && !twomember {
 								membermap[ktry] = Reverse(trymember)
 								//delete(membermap, ktry)
+								boolval = true
 
 							} else if member[0] == trymember[len(trymember)-1] {
 								//membermap[ktry] = append(trymember, member...)
-								membermap[ktry] = Reverse(trymember)
+								//membermap[ktry] = Reverse(trymember)
 								//delete(membermap, k)
+								boolval = true
 
 							} else if member[len(member)-1] == trymember[0] {
 								membermap[k] = append(member, trymember...)
+								boolval = true
 
 								delete(membermap, ktry)
 
@@ -228,12 +251,12 @@ func Connect(members [][]int) [][]int {
 
 					}
 				}
-				generation += 1
 			}
 		}
+		generation += 1
 
 	}
-
+	//fmt.Println(len(membermap), "membermap")
 	// final clean up if applicable
 	if len(membermap) == 2 {
 		var member, trymember []int
@@ -249,7 +272,6 @@ func Connect(members [][]int) [][]int {
 				ktry = kk
 			}
 		}
-
 		if member[len(member)-1] != trymember[0] {
 			membermap[k] = append(member, Reverse(trymember)...)
 		} else {
@@ -292,6 +314,27 @@ func (test *TestStruct) MakeOuters() *geojson.FeatureCollection {
 		feature := geojson.NewLineStringFeature(outerring)
 		feature.Properties = map[string]interface{}{"COLORKEY": RandomColor()}
 		fc.Features = append(fc.Features, feature)
+	}
+	return fc
+}
+
+func (test *TestStruct) MakeOutersPoints() *geojson.FeatureCollection {
+	fc := &geojson.FeatureCollection{}
+	pos := 0
+	totalpos := 0
+	for _, outer := range test.Outers {
+		//outerring := make([][]float64, len(outer))
+		for _, node := range outer {
+			feature := geojson.NewPointFeature(test.NodeMap[node])
+			feature.Properties = map[string]interface{}{"COLORKEY": colorkeys[pos], "POS": totalpos}
+			pos++
+			totalpos++
+			if len(colorkeys) == pos {
+				pos = 0
+			}
+			fc.Features = append(fc.Features, feature)
+
+		}
 	}
 	return fc
 }
@@ -364,4 +407,42 @@ func ReadTestCaseGob(nodefilename, nodemapfilename string) TestStruct {
 	}
 
 	return TestStruct{NodeMap: vv, Outers: outers, Inners: inners}
+}
+
+func WalkTestCases() map[string][]string {
+	dir := "test_cases"
+	subDirToSkip := "skip" // dir/to/walk/skip
+	mymap := map[string][]string{}
+	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", dir, err)
+			return err
+		}
+		if info.IsDir() && info.Name() == subDirToSkip {
+			fmt.Printf("skipping a dir without errors: %+v \n", info.Name())
+			return filepath.SkipDir
+		}
+		if !info.IsDir() {
+			myval := strings.Split(path, "/")[1]
+			myval = strings.Split(myval, "_")[0]
+			myval = strings.Split(myval, ".")[0]
+			mymap[myval] = append(mymap[myval], path)
+
+			//fmt.Println(path)
+		}
+		//fmt.Printf("visited file: %q\n", path)
+		return nil
+	})
+	return mymap
+}
+
+func MakeAllTestCases() *geojson.FeatureCollection {
+	fc := geojson.NewFeatureCollection()
+	for k, vals := range WalkTestCases() {
+		mystruct := ReadTestCaseGob(vals[0], vals[1])
+		feature := mystruct.MakePolygon()
+		feature.Properties["ID"] = k
+		fc.Features = append(fc.Features, feature)
+	}
+	return fc
 }
