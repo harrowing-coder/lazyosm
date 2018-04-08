@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/murphy214/pbf"
 	"github.com/paulmach/go.geojson"
+	//"time"
+	//"sync"
 )
 
 func d() {
@@ -308,9 +310,11 @@ func (d *decoder) SyncWaysNodeMap(lazy *LazyPrimitiveBlock, idmap *IdMap) {
 	d.AddUpdates(keylist)
 }
 
+/*
 // syncs the nodemap against a give way block and flushes old
 // node maps out of memory if needed
-func (d *decoder) SyncWaysNodeMapMultiple(lazys []*LazyPrimitiveBlock, idmap *IdMap) {
+func (d *decoder) SyncWaysNodeMapMultiple2(lazys []*LazyPrimitiveBlock, idmap *IdMap) {
+	s := time.Now()
 	keymap := map[int]string{}
 	for _, lazy := range lazys {
 		tempkeymap := d.ReadWaysLazy(lazy, idmap)
@@ -324,6 +328,48 @@ func (d *decoder) SyncWaysNodeMapMultiple(lazys []*LazyPrimitiveBlock, idmap *Id
 		keylist[i] = k
 		i++
 	}
-
 	d.AddUpdates(keylist)
+	fmt.Println(time.Now().Sub(s))
+
+}
+*/
+
+func (d *decoder) SyncWaysNodeMapMultiple(lazys []*LazyPrimitiveBlock, idmap *IdMap) {
+	//s := time.Now()
+	keymap := map[int]string{}
+	c := make(chan map[int]string)
+	current := 0
+	for pos, lazy := range lazys {
+		go func(lazy *LazyPrimitiveBlock) {
+			c <- d.ReadWaysLazy(lazy, idmap)
+		}(lazy)
+		current++
+
+		if pos%10 == 1 || len(lazys)-1 == pos {
+			for i := 0; i < current; i++ {
+				tempmap := <-c
+				for k, v := range tempmap {
+					keymap[k] = v
+				}
+			}
+			current = 0
+		}
+	}
+	/*
+		for range lazys {
+			tempmap := <-c
+			for k, v := range tempmap {
+				keymap[k] = v
+			}
+		}
+	*/
+	keylist := make([]int, len(keymap))
+	i := 0
+	for k := range keymap {
+		keylist[i] = k
+		i++
+	}
+	d.AddUpdates(keylist)
+	//fmt.Println(time.Now().Sub(s))
+
 }

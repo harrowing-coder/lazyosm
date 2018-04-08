@@ -70,7 +70,7 @@ type decoder struct {
 	IdMap       *IdMap                      // the id map for nodes (see idmap.go)
 	WayIdMap    *IdMap                      // the id map for ways (see idmap.go)
 	NodeMap     *NodeMap                    // the nodemap for nodes
-	RelationMap map[int]int                 // the map for indicating whether a way is used in a relation
+	RelationMap map[int]string              // the map for indicating whether a way is used in a relation
 	Limit       int                         // the limit of how many nodes or ways can be in a map at once
 	Geobuf      *g.Writer                   // the output writer that currently exists
 
@@ -79,6 +79,8 @@ type decoder struct {
 
 	// for data decoders
 	inputs []chan<- iPair
+
+	m sync.Mutex
 
 	cOffset int64
 	cIndex  int
@@ -97,7 +99,7 @@ func NewDecoder(f *os.File, limit int) *decoder {
 		NodeMap:     NewNodeMap(limit),
 		IdMap:       NewIdMap(),
 		WayIdMap:    NewIdMap(),
-		RelationMap: map[int]int{},
+		RelationMap: map[int]string{},
 		Geobuf:      g.WriterFileNew("a.geobuf"),
 		Limit:       limit,
 	}
@@ -151,6 +153,8 @@ func ReadDecoder(f *os.File, limit int) *decoder {
 		fmt.Println(err)
 	}
 	d.Header = header
+	fi, _ := f.Stat()
+	filesize := int(fi.Size()) / 1000000
 
 	boolval := true
 	var oldsize int
@@ -162,6 +166,7 @@ func ReadDecoder(f *os.File, limit int) *decoder {
 			boolval = false
 		}
 		oldsize = size
+		fmt.Printf("\r[%dmb/%dmb] read preliminary read with %d fileblocks total", d.bytesRead/1000000, filesize, d.Count)
 	}
 
 	return d
@@ -190,6 +195,7 @@ func (dec *decoder) ReadFileBlock(sizeBuf, headerBuf, blobBuf []byte) (*osmpbf.B
 	primblock := ReadLazyPrimitiveBlock(pbf.NewPBF(dec.ReadDataPos(index)))
 	primblock.Position = dec.Count
 	primblock.FilePos = index
+
 	switch primblock.Type {
 	case "DenseNodes":
 		dec.DenseNodes[primblock.Position] = &primblock

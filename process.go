@@ -42,29 +42,37 @@ func (d *decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
 					oldref = ref
 				}
 
-				closedbool := false
-				// checking if closed way
-				if newrefs[0] == newrefs[len(newrefs)-1] {
-					closedbool = true
+				_, boolval := d.RelationMap[int(way.Id)]
+				if !boolval {
+
+					line := make([][]float64, len(newrefs))
+
+					for pos, i := range newrefs {
+						line[pos] = d.GetNode(i)
+					}
+
+					closedbool := false
+					// checking if closed way
+					if newrefs[0] == newrefs[len(newrefs)-1] {
+						closedbool = true
+					}
+
+					var feature *geojson.Feature
+					//_,boundarybool := mymap[`boundary`]
+					if closedbool == true && mymap[`area`] == `yes` && mymap[`building`] == "yes" {
+						feature = geojson.NewPolygonFeature([][][]float64{line})
+						feature.Properties = mymap
+
+					} else {
+						feature = geojson.NewLineStringFeature(line)
+						feature.Properties = mymap
+					}
+
+					d.Geobuf.WriteFeature(feature)
+					//count += 1
+
+					//make(map[string]interface{}, len(keys))
 				}
-
-				if closedbool == true && mymap[`area`] == `yes` {
-
-				}
-
-				line := make([][]float64, len(newrefs))
-
-				for pos, i := range newrefs {
-					line[pos] = d.GetNode(i)
-				}
-
-				feature := geojson.NewLineStringFeature(line)
-				feature.Properties = mymap
-
-				d.Geobuf.WriteFeature(feature)
-				//count += 1
-
-				//make(map[string]interface{}, len(keys))
 				wg.Done()
 			}(way)
 
@@ -226,23 +234,11 @@ func (d *decoder) ReadWays() {
 
 // processes the osm pbf file
 func (d *decoder) ProcessFile() {
+	d.ProcessRelations()
+
 	is := []*LazyPrimitiveBlock{}
 	sizedensenodes := len(d.DenseNodes)
 	count := 0
-
-	// processing dense nodes (points)
-	for pos, i := range d.DenseNodes {
-		if i.TagsBool {
-			is = append(is, i)
-			if len(is) == 5 || pos == sizedensenodes-1 {
-				d.ProcessMultipleDenseNode(is)
-				is = []*LazyPrimitiveBlock{}
-			}
-
-		}
-		count += 1
-		fmt.Printf("\r[%d/%d] Dense Node Blocks Completed", count, sizedensenodes)
-	}
 	count = 0
 	waylist := SortKeys(d.Ways)
 	size := len(waylist)
@@ -259,9 +255,22 @@ func (d *decoder) ProcessFile() {
 
 		count += 1
 		pos += 1
-		fmt.Printf("\r[%d/%d] Dense Node Blocks Completed", count, size)
+		fmt.Printf("\r[%d/%d] Way Blocks Completed", count, size)
 	}
+	fmt.Println()
+	count = 0
+	// processing dense nodes (points)
+	for pos, i := range d.DenseNodes {
+		if i.TagsBool {
+			is = append(is, i)
+			if len(is) == 5 || pos == sizedensenodes-1 {
+				d.ProcessMultipleDenseNode(is)
+				is = []*LazyPrimitiveBlock{}
+			}
 
-	fmt.Println("Completed Points")
-
+		}
+		count += 1
+		fmt.Printf("\r[%d/%d] Dense Node Blocks Completed", count, sizedensenodes)
+	}
+	fmt.Println()
 }
