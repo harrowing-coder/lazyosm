@@ -63,16 +63,16 @@ type decoder struct {
 	r           io.Reader
 	bytesRead   int64
 	Count       int
-	DenseNodes  map[int]*LazyPrimitiveBlock
-	Ways        map[int]*LazyPrimitiveBlock
-	Relations   map[int]*LazyPrimitiveBlock
-	Nodes       map[int]*LazyPrimitiveBlock
-	IdMap       *IdMap
-	WayIdMap    *IdMap
-	NodeMap     *NodeMap
-	RelationMap map[int]int
-	Limit       int
-	Geobuf      *g.Writer
+	DenseNodes  map[int]*LazyPrimitiveBlock // data structure for holding lazy dense nodes
+	Ways        map[int]*LazyPrimitiveBlock // data structure for holding lazy ways
+	Relations   map[int]*LazyPrimitiveBlock // data structure for holding lazy relations
+	Nodes       map[int]*LazyPrimitiveBlock // data structure for holding nodes
+	IdMap       *IdMap                      // the id map for nodes (see idmap.go)
+	WayIdMap    *IdMap                      // the id map for ways (see idmap.go)
+	NodeMap     *NodeMap                    // the nodemap for nodes
+	RelationMap map[int]int                 // the map for indicating whether a way is used in a relation
+	Limit       int                         // the limit of how many nodes or ways can be in a map at once
+	Geobuf      *g.Writer                   // the output writer that currently exists
 
 	cancel func()
 	wg     sync.WaitGroup
@@ -196,7 +196,6 @@ func (dec *decoder) ReadFileBlock(sizeBuf, headerBuf, blobBuf []byte) (*osmpbf.B
 		dec.IdMap.AddBlock(&primblock)
 	case "Ways":
 		dec.Ways[primblock.Position] = &primblock
-		fmt.Println(primblock.IdRange)
 		dec.WayIdMap.AddBlock(&primblock)
 	case "Relations":
 		dec.Relations[primblock.Position] = &primblock
