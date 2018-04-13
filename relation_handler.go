@@ -333,46 +333,7 @@ func (d *decoder) CreateTestCaseBlock(key int, idmap map[int]string) {
 // processes a block of relations
 func (d *decoder) ProcessRelationBlock(key int, blockcount int) {
 	primblock := d.Relations[key]
-	//relations := d.ReadBlock(*primblock).Primitivegroup[0].Relations
-	/*
-		relmap := d.ReadRelationsLazy(primblock)
 
-		// lazily leading all the ways we need
-		totalmap := map[int]string{}
-		c := make(chan map[int]string)
-		//var wg sync.WaitGroup
-		i := 0
-		for k := range relmap {
-			//wg.Add(1)
-			go func(k int, c chan map[int]string) {
-				val, boolval := d.Ways[k]
-				if boolval {
-					c <- d.ReadWaysLazy(val, d.IdMap)
-
-				} else {
-					c <- map[int]string{}
-				}
-				//wg.Done()
-			}(k, c)
-
-			i++
-		}
-
-		for range relmap {
-			tempmap := <-c
-			for k := range tempmap {
-				totalmap[k] = ""
-			}
-		}
-
-		// lazily reading all the values to sync
-		stringval := make([]*LazyPrimitiveBlock, len(totalmap))
-		i = 0
-		for k := range totalmap {
-			stringval[i] = d.DenseNodes[k]
-			i++
-		}
-	*/
 	//d.SyncWaysNodeMapMultiple(stringval, d.IdMap)
 	// reading the primitive relation block
 	pb := d.ReadBlock(*primblock)
@@ -447,7 +408,7 @@ func (d *decoder) ProcessRelationBlock(key int, blockcount int) {
 			}
 
 		}
-		//fmt.Println(len(temp_relations), d.Limit)
+
 		temp_relations = append(temp_relations, way)
 		if len(totalidmap) > d.Limit || ipos == sizerels-1 {
 
@@ -458,10 +419,12 @@ func (d *decoder) ProcessRelationBlock(key int, blockcount int) {
 				add_nodes[newpos] = k
 				newpos++
 			}
+
 			// updating the nodemap
 			if len(add_nodes) > 0 {
 				d.AddUpdates(add_nodes)
 			}
+
 			fmt.Printf("\r[%d/%d] Relation Blocks [%d/%d] Relations Read in this block", blockcount+1, len(d.Relations), ipos, len(relations))
 			for _, way := range temp_relations {
 				// getting the refs for ways

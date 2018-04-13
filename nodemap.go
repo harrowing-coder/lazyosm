@@ -60,6 +60,10 @@ func NewNodeMap(limit int) *NodeMap {
 	return &NodeMap{HitMap: map[int]int{}, Limit: limit, NodeMap: map[int]map[int][]float64{}}
 }
 
+func (d *decoder) EmptyNodeMap() {
+	d.NodeMap = NewNodeMap(d.Limit)
+}
+
 // adds values to the nodemap
 func (d *decoder) AddUpdate(position int) {
 	if d.NodeMap.AddUpdate(position) {

@@ -11,15 +11,10 @@ import (
 	"sort"
 )
 
+// processes a specific way block
 func (d *decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
-	//fmt.Println(i)
 	block := d.ReadBlock(*lazy)
-	//fmt.Println("here")
-	//fc := &geojson.FeatureCollection{}
-	//feature := &geojson.Feature{Properties: map[string]interface{}{}}
 	var wg sync.WaitGroup
-	//tempwriter := g.WriterBufNew()
-
 	if len(block.Primitivegroup) > 0 {
 		for _, way := range block.Primitivegroup[0].Ways {
 			wg.Add(1)
@@ -80,8 +75,6 @@ func (d *decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
 		wg.Wait()
 
 	}
-	//bytevals, _ := fc.MarshalJSON()
-	//ioutil.WriteFile("a.geojson", bytevals, 0677)
 }
 
 // proces multiple
@@ -144,7 +137,6 @@ func (d *decoder) ProcessDenseNode(lazy *LazyPrimitiveBlock) {
 			feature.Properties = mymap
 			d.Geobuf.WriteFeature(feature)
 		}
-		//dec.q = append(dec.q, &Node{id, latitude, longitude, tags, info})
 	}
 }
 
@@ -173,45 +165,6 @@ func SortKeys(mymap map[int]*LazyPrimitiveBlock) []int {
 	return newlist
 }
 
-func Connect_Members(members [][]int) [][]int {
-	nodebool := false
-	var totalnodeids [][]int
-	for nodebool == false {
-		totalnodeids = [][]int{}
-		nodebool = true
-		for ii, oldnodeids := range members {
-			olds := oldnodeids[0]
-			olde := oldnodeids[len(oldnodeids)-1]
-			valbool := false
-			for i, nodeids := range members {
-				s := nodeids[0]
-				e := nodeids[len(nodeids)-1]
-				if i != ii && valbool == false {
-					if s == olde {
-						newnodeids := append(oldnodeids, nodeids...)
-						totalnodeids = append(totalnodeids, newnodeids)
-						valbool = true
-						if newnodeids[0] != newnodeids[len(newnodeids)-1] {
-							nodebool = false
-						}
-					} else if olds == e {
-						newnodeids := append(nodeids, oldnodeids...)
-						totalnodeids = append(totalnodeids, newnodeids)
-						valbool = true
-						if newnodeids[0] != newnodeids[len(newnodeids)-1] {
-							nodebool = false
-						}
-					}
-				}
-			}
-
-		}
-		members = totalnodeids
-	}
-
-	return totalnodeids
-}
-
 // this reads ways from a decoder
 func (d *decoder) ReadWays() {
 	size := len(d.Ways)
@@ -232,25 +185,36 @@ func (d *decoder) ReadWays() {
 	}
 }
 
-// processes the osm pbf file
-func (d *decoder) ProcessFile() {
-	d.ProcessRelations()
-
+// processes ways
+func (d *decoder) ProcessWays() {
 	is := []*LazyPrimitiveBlock{}
-	sizedensenodes := len(d.DenseNodes)
 	count := 0
 	count = 0
 	waylist := SortKeys(d.Ways)
 	size := len(waylist)
 	pos := 0
+	totalidmap := map[int]string{}
 	for _, key := range waylist {
-		//tempmap := d.ReadWaysLazyRelations(i, d.IdMap))
 		i := d.Ways[key]
 		is = append(is, i)
-		if len(is) == 3 || pos == size-1 {
-			d.SyncWaysNodeMapMultiple(is, d.IdMap)
+
+		tempidmap := d.ReadWaysLazy(i, d.IdMap)
+		for k, v := range tempidmap {
+			totalidmap[k] = v
+		}
+
+		if len(totalidmap) > d.Limit || pos == size-1 {
+			//d.SyncWaysNodeMapMultiple(is, d.IdMap)
+			keylist := make([]int, len(totalidmap))
+			i := 0
+			for k := range totalidmap {
+				keylist[i] = k
+				i++
+			}
+			d.AddUpdates(keylist)
 			d.ProcessMultipleWays(is)
 			is = []*LazyPrimitiveBlock{}
+			totalidmap = map[int]string{}
 		}
 
 		count += 1
@@ -258,12 +222,19 @@ func (d *decoder) ProcessFile() {
 		fmt.Printf("\r[%d/%d] Way Blocks Completed", count, size)
 	}
 	fmt.Println()
-	count = 0
+}
+
+// processes dense nodes
+func (d *decoder) ProcessDenseNodes() {
+	d.EmptyNodeMap()
+	is := []*LazyPrimitiveBlock{}
+	sizedensenodes := len(d.DenseNodes)
+	count := 0
 	// processing dense nodes (points)
 	for pos, i := range d.DenseNodes {
 		if i.TagsBool {
 			is = append(is, i)
-			if len(is) == 5 || pos == sizedensenodes-1 {
+			if len(is) == d.Limit || pos == sizedensenodes-1 {
 				d.ProcessMultipleDenseNode(is)
 				is = []*LazyPrimitiveBlock{}
 			}
@@ -273,4 +244,17 @@ func (d *decoder) ProcessFile() {
 		fmt.Printf("\r[%d/%d] Dense Node Blocks Completed", count, sizedensenodes)
 	}
 	fmt.Println()
+
+}
+
+// processes the osm pbf file
+func (d *decoder) ProcessFile() {
+	// processing relations
+	d.ProcessRelations()
+
+	// procesing ways
+	d.ProcessWays()
+
+	// procesing dense nodes
+	d.ProcessDenseNodes()
 }

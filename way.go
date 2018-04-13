@@ -117,6 +117,8 @@ func (prim *PrimitiveBlock) ReadWay() *Way {
 	return way
 }
 
+// a lazy map reads an idmap and returns a map
+// with the blockid map values
 func (d *decoder) ReadWaysLazy(lazy *LazyPrimitiveBlock, idmap *IdMap) map[int]string {
 	prim := d.CreatePrimitiveBlock(lazy)
 	prim.Buf.Pos = prim.GroupIndex[0]
@@ -310,30 +312,7 @@ func (d *decoder) SyncWaysNodeMap(lazy *LazyPrimitiveBlock, idmap *IdMap) {
 	d.AddUpdates(keylist)
 }
 
-/*
-// syncs the nodemap against a give way block and flushes old
-// node maps out of memory if needed
-func (d *decoder) SyncWaysNodeMapMultiple2(lazys []*LazyPrimitiveBlock, idmap *IdMap) {
-	s := time.Now()
-	keymap := map[int]string{}
-	for _, lazy := range lazys {
-		tempkeymap := d.ReadWaysLazy(lazy, idmap)
-		for k, v := range tempkeymap {
-			keymap[k] = v
-		}
-	}
-	keylist := make([]int, len(keymap))
-	i := 0
-	for k := range keymap {
-		keylist[i] = k
-		i++
-	}
-	d.AddUpdates(keylist)
-	fmt.Println(time.Now().Sub(s))
-
-}
-*/
-
+// syncs multiple way blocks with an idmap
 func (d *decoder) SyncWaysNodeMapMultiple(lazys []*LazyPrimitiveBlock, idmap *IdMap) {
 	//s := time.Now()
 	keymap := map[int]string{}
