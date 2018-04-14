@@ -4,8 +4,6 @@
 
 Lazyosm is something I've been half attempting to do for a while, it attempts to create a relational model of all the file blocks and the underlying osm pbf file structure to properly utilize assembling features as quickly as possible. This differs drastically from other go implementations of osm data that purely go for memory through of primitive features which doesn't do you a whole lot of good if your node for a way is 100 million primitive features from one another. 
 
-I think what I'm trying to say is this methodology isn't probably the way its intended to be used, throwing all your nodes in a k,v databases and swapping each data structure out to build features is silly (your deserializing nodes just to be written to a file again) but people do it. More importanty the osm file structure I think gives you a few clues on how to do it in a more nuanced manner, but I could be wrong. 
-
 # Implementation Notes
 
 I've hacked on this quite a bit so here are some scattered thoughts about what does what how and why. 
