@@ -73,9 +73,10 @@ type decoder struct {
 	RelationMap map[int]string              // the map for indicating whether a way is used in a relation
 	Limit       int                         // the limit of how many nodes or ways can be in a map at once
 	Geobuf      *g.Writer                   // the output writer that currently exists
-
-	cancel func()
-	wg     sync.WaitGroup
+	WriteBool   bool
+	TotalMemory int // the total memory throughput
+	cancel      func()
+	wg          sync.WaitGroup
 
 	// for data decoders
 	inputs []chan<- iPair
@@ -102,6 +103,7 @@ func NewDecoder(f *os.File, limit int) *decoder {
 		RelationMap: map[int]string{},
 		Geobuf:      g.WriterFileNew("a.geobuf"),
 		Limit:       limit,
+		WriteBool:   true,
 	}
 }
 
@@ -124,7 +126,7 @@ func (dec *decoder) ReadDataPos(pos [2]int) []byte {
 	if err != nil {
 		fmt.Println(err)
 	}
-
+	dec.TotalMemory += len(data)
 	return data
 }
 

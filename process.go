@@ -54,7 +54,7 @@ func (d *decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
 
 					var feature *geojson.Feature
 					//_,boundarybool := mymap[`boundary`]
-					if closedbool == true && mymap[`area`] == `yes` && mymap[`building`] == "yes" {
+					if (closedbool == true) || mymap[`building`] == "yes" {
 						feature = geojson.NewPolygonFeature([][][]float64{line})
 						feature.Properties = mymap
 
@@ -62,8 +62,9 @@ func (d *decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
 						feature = geojson.NewLineStringFeature(line)
 						feature.Properties = mymap
 					}
-
-					d.Geobuf.WriteFeature(feature)
+					if d.WriteBool {
+						d.Geobuf.WriteFeature(feature)
+					}
 					//count += 1
 
 					//make(map[string]interface{}, len(keys))
@@ -135,7 +136,9 @@ func (d *decoder) ProcessDenseNode(lazy *LazyPrimitiveBlock) {
 
 			feature := geojson.NewPointFeature([]float64{longitude, latitude})
 			feature.Properties = mymap
-			d.Geobuf.WriteFeature(feature)
+			if d.WriteBool {
+				d.Geobuf.WriteFeature(feature)
+			}
 		}
 	}
 }
@@ -186,7 +189,7 @@ func (d *decoder) ReadWays() {
 }
 
 // processes ways
-func (d *decoder) ProcessWays() {
+func (d *decoder) ProcessWays2() {
 	is := []*LazyPrimitiveBlock{}
 	count := 0
 	count = 0
@@ -203,7 +206,7 @@ func (d *decoder) ProcessWays() {
 			totalidmap[k] = v
 		}
 
-		if len(totalidmap) > d.Limit || pos == size-1 {
+		if len(totalidmap) > d.Limit || pos == size-1 || len(is) > 5 {
 			//d.SyncWaysNodeMapMultiple(is, d.IdMap)
 			keylist := make([]int, len(totalidmap))
 			i := 0
@@ -219,7 +222,45 @@ func (d *decoder) ProcessWays() {
 
 		count += 1
 		pos += 1
-		fmt.Printf("\r[%d/%d] Way Blocks Completed", count, size)
+		fmt.Printf("\r[%d/%d] Way Blocks Completed. Memory Throughput: %dmb", count, size, d.TotalMemory/1000000)
+	}
+	fmt.Println()
+}
+func (d *decoder) ProcessWays() {
+	is := []*LazyPrimitiveBlock{}
+	count := 0
+	count = 0
+	waylist := SortKeys(d.Ways)
+	size := len(waylist)
+	pos := 0
+	totalmap := d.AssembleWays()
+	totalidmap := map[int]string{}
+	for _, key := range waylist {
+		i := d.Ways[key]
+		is = append(is, i)
+
+		tempidmap := totalmap[key]
+		for k, v := range tempidmap {
+			totalidmap[k] = v
+		}
+
+		if len(totalidmap) > d.Limit || pos == size-1 || len(is) == 20 {
+			//d.SyncWaysNodeMapMultiple(is, d.IdMap)
+			keylist := make([]int, len(totalidmap))
+			i := 0
+			for k := range totalidmap {
+				keylist[i] = k
+				i++
+			}
+			d.AddUpdates(keylist)
+			d.ProcessMultipleWays(is)
+			is = []*LazyPrimitiveBlock{}
+			totalidmap = map[int]string{}
+		}
+
+		count += 1
+		pos += 1
+		fmt.Printf("\r[%d/%d] Way Blocks Completed. Memory Throughput: %dmb", count, size, d.TotalMemory/1000000)
 	}
 	fmt.Println()
 }
@@ -234,7 +275,7 @@ func (d *decoder) ProcessDenseNodes() {
 	for pos, i := range d.DenseNodes {
 		if i.TagsBool {
 			is = append(is, i)
-			if len(is) == d.Limit || pos == sizedensenodes-1 {
+			if len(is) == 10 || pos == sizedensenodes-1 {
 				d.ProcessMultipleDenseNode(is)
 				is = []*LazyPrimitiveBlock{}
 			}
@@ -247,13 +288,50 @@ func (d *decoder) ProcessDenseNodes() {
 
 }
 
+type OutputWay struct {
+	ID  int
+	Map map[int]string
+}
+
+type WayRow struct {
+	Ways    []*LazyPrimitiveBlock
+	KeyList []int
+}
+
+//
+func (d *decoder) AssembleWays() map[int]map[int]string {
+	d.EmptyNodeMap()
+	waylist := SortKeys(d.Ways)
+	c := make(chan OutputWay)
+	waylistsize := len(waylist)
+	count := 0
+	totalmap := map[int]map[int]string{}
+	for pos, i := range waylist {
+		way := d.Ways[i]
+
+		go func(way *LazyPrimitiveBlock, c chan OutputWay) {
+			c <- OutputWay{Map: d.ReadWaysLazy(way, d.IdMap), ID: way.Position}
+		}(way, c)
+		count += 1
+		if count == d.Limit || waylistsize-1 == pos {
+			for myc := 0; myc < count; myc++ {
+				output := <-c
+				totalmap[output.ID] = output.Map
+			}
+			count = 0
+		}
+	}
+
+	return totalmap
+}
+
 // processes the osm pbf file
 func (d *decoder) ProcessFile() {
 	// processing relations
 	d.ProcessRelations()
 
 	// procesing ways
-	d.ProcessWays()
+	d.ProcessWays2()
 
 	// procesing dense nodes
 	d.ProcessDenseNodes()

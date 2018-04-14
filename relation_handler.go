@@ -339,6 +339,7 @@ func (d *decoder) ProcessRelationBlock(key int, blockcount int) {
 	pb := d.ReadBlock(*primblock)
 	relations := pb.Primitivegroup[0].Relations
 	waymap := map[int][]int{}
+	st := pb.GetStringtable().GetS()
 	// building the way map relation table
 	for _, way := range relations {
 		refs := way.Memids
@@ -353,9 +354,18 @@ func (d *decoder) ProcessRelationBlock(key int, blockcount int) {
 			oldref = ref
 		}
 
-		for _, i := range newrefs {
-			wayblock := d.WayIdMap.GetBlock(i)
-			waymap[wayblock] = append(waymap[wayblock], i)
+		// unpacking tags
+		mymap := map[string]interface{}{}
+		for i := range way.Keys {
+			keypos, valpos := way.Keys[i], way.Vals[i]
+			mymap[st[keypos]] = st[valpos]
+		}
+		if mymap["type"] == "multipolygon" {
+			for _, i := range newrefs {
+				wayblock := d.WayIdMap.GetBlock(i)
+				waymap[wayblock] = append(waymap[wayblock], i)
+			}
+		} else {
 		}
 
 	}
@@ -363,8 +373,8 @@ func (d *decoder) ProcessRelationBlock(key int, blockcount int) {
 	// creating toal way nodemap
 	totalwaynodemap := map[int][]int{}
 	for k, v := range waymap {
-		val, boolval := d.Ways[k]
 
+		val, boolval := d.Ways[k]
 		if boolval {
 			tempwaynodemap := d.ReadWaysLazyList(val, v)
 			for k, v := range tempwaynodemap {
@@ -381,7 +391,6 @@ func (d *decoder) ProcessRelationBlock(key int, blockcount int) {
 	temp_relations := []*osmpbf.Relation{}
 
 	// getting string table
-	st := pb.GetStringtable().GetS()
 	sizerels := len(relations)
 	for ipos, way := range relations {
 		// getting the refs for ways
@@ -425,7 +434,7 @@ func (d *decoder) ProcessRelationBlock(key int, blockcount int) {
 				d.AddUpdates(add_nodes)
 			}
 
-			fmt.Printf("\r[%d/%d] Relation Blocks [%d/%d] Relations Read in this block", blockcount+1, len(d.Relations), ipos, len(relations))
+			fmt.Printf("\r[%d/%d] Relation Blocks [%d/%d] Relations Read in this block. Memory Throughput: %dmb", blockcount+1, len(d.Relations), ipos, len(relations), d.TotalMemory/1000000)
 			for _, way := range temp_relations {
 				// getting the refs for ways
 				refs := way.Memids
@@ -517,11 +526,15 @@ func (d *decoder) ProcessRelationBlock(key int, blockcount int) {
 						if len(polygons) == 1 {
 							featpolygon := geojson.NewPolygonFeature(polygons[0])
 							featpolygon.Properties = mymap
-							d.Geobuf.WriteFeature(featpolygon)
+							if d.WriteBool {
+								d.Geobuf.WriteFeature(featpolygon)
+							}
 						} else {
 							featpolygon := geojson.NewMultiPolygonFeature(polygons...)
 							featpolygon.Properties = mymap
-							d.Geobuf.WriteFeature(featpolygon)
+							if d.WriteBool {
+								d.Geobuf.WriteFeature(featpolygon)
+							}
 						}
 					}
 				}
@@ -545,7 +558,7 @@ func (d *decoder) ProcessRelations() {
 		d.ProcessRelationBlock(key, i)
 		//fmt.Printf("\r[%d/%d] Processing Relations", i, sizerelation)
 	}
-	fmt.Println(len(d.RelationMap))
+	fmt.Println()
 }
 
 // creates test cases for a given id of relationss
