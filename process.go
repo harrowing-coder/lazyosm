@@ -232,35 +232,27 @@ func (d *decoder) ProcessWays() {
 	count = 0
 	waylist := SortKeys(d.Ways)
 	size := len(waylist)
-	pos := 0
-	totalmap := d.AssembleWays()
-	totalidmap := map[int]string{}
-	for _, key := range waylist {
-		i := d.Ways[key]
-		is = append(is, i)
+	reads := d.AssembleWays()
+	for _, read := range reads {
 
-		tempidmap := totalmap[key]
-		for k, v := range tempidmap {
-			totalidmap[k] = v
+		keylist := make([]int, len(read.Nodes))
+		i := 0
+		for k := range read.Nodes {
+			keylist[i] = k
+			i++
 		}
-
-		if len(totalidmap) > d.Limit || pos == size-1 || len(is) == 20 {
-			//d.SyncWaysNodeMapMultiple(is, d.IdMap)
-			keylist := make([]int, len(totalidmap))
-			i := 0
-			for k := range totalidmap {
-				keylist[i] = k
-				i++
+		d.AddUpdates(keylist)
+		for pos, i := range read.Ways {
+			is = append(is, d.Ways[i])
+			if len(is) == 20 || pos == len(read.Ways)-1 {
+				//d.SyncWaysNodeMapMultiple(is, d.IdMap)
+				d.ProcessMultipleWays(is)
+				is = []*LazyPrimitiveBlock{}
 			}
-			d.AddUpdates(keylist)
-			d.ProcessMultipleWays(is)
-			is = []*LazyPrimitiveBlock{}
-			totalidmap = map[int]string{}
+			count += 1
+			fmt.Printf("\r[%d/%d] Way Blocks Completed. Memory Throughput: %dmb", count, size, d.TotalMemory/1000000)
 		}
 
-		count += 1
-		pos += 1
-		fmt.Printf("\r[%d/%d] Way Blocks Completed. Memory Throughput: %dmb", count, size, d.TotalMemory/1000000)
 	}
 	fmt.Println()
 }
@@ -299,7 +291,7 @@ type WayRow struct {
 }
 
 //
-func (d *decoder) AssembleWays() map[int]map[int]string {
+func (d *decoder) AssembleWays() []ReadWay {
 	d.EmptyNodeMap()
 	waylist := SortKeys(d.Ways)
 	c := make(chan OutputWay)
@@ -313,7 +305,8 @@ func (d *decoder) AssembleWays() map[int]map[int]string {
 			c <- OutputWay{Map: d.ReadWaysLazy(way, d.IdMap), ID: way.Position}
 		}(way, c)
 		count += 1
-		if count == d.Limit || waylistsize-1 == pos {
+		fmt.Printf("\r[%d/%d] Reading Way IDs", pos, waylistsize-1)
+		if count == 50 || waylistsize-1 == pos {
 			for myc := 0; myc < count; myc++ {
 				output := <-c
 				totalmap[output.ID] = output.Map
@@ -321,18 +314,121 @@ func (d *decoder) AssembleWays() map[int]map[int]string {
 			count = 0
 		}
 	}
+	fmt.Println()
 
-	return totalmap
+	return MakeReads(totalmap, d.Limit)
 }
 
 // processes the osm pbf file
 func (d *decoder) ProcessFile() {
 	// processing relations
-	d.ProcessRelations()
+	//d.ProcessRelations()
 
 	// procesing ways
-	d.ProcessWays2()
+	d.ProcessWays()
 
 	// procesing dense nodes
 	d.ProcessDenseNodes()
+}
+
+// makes color key dense nodes
+func (d *decoder) MakeColorDenseNodes() {
+	pos := 0
+	for _, lazy := range d.DenseNodes {
+		colorkey := colorkeys[pos]
+		pb := d.ReadBlock(*lazy)
+		dn := pb.Primitivegroup[0].Dense
+
+		st := pb.GetStringtable().GetS()
+		granularity := int64(pb.GetGranularity())
+		latOffset := pb.GetLatOffset()
+		lonOffset := pb.GetLonOffset()
+		//dateGranularity := int64(pb.GetDateGranularity())
+		ids := dn.GetId()
+		lats := dn.GetLat()
+		lons := dn.GetLon()
+		//di := dn.GetDenseinfo()
+
+		tu := tagUnpacker{st, dn.GetKeysVals(), 0}
+		var id, lat, lon int64
+		for index := range ids {
+			id = ids[index] + id
+			lat = lats[index] + lat
+			lon = lons[index] + lon
+			latitude := 1e-9 * float64((latOffset + (granularity * lat)))
+			longitude := 1e-9 * float64((lonOffset + (granularity * lon)))
+			tags := tu.next()
+			//info := extractDenseInfo(st, &state, di, index, dateGranularity)
+			//id, latitude, longitude, tags
+			mymap := map[string]interface{}{"id": id}
+			for k, v := range tags {
+				mymap[k] = v
+			}
+
+			mymap[`COLORKEY`] = colorkey
+			mymap[`POSITION`] = lazy.Position
+
+			feature := geojson.NewPointFeature([]float64{longitude, latitude})
+			feature.Properties = mymap
+			if d.WriteBool {
+				d.Geobuf.WriteFeature(feature)
+			}
+
+		}
+		pos++
+		if pos == sizecolorkeys {
+			pos = 0
+		}
+	}
+}
+
+// make colorkey ways
+func (d *decoder) MakeColorWays() {
+	newlist := []int{}
+	for _, i := range d.DenseNodes {
+		newlist = append(newlist, i.Position)
+	}
+	d.AddUpdates(newlist)
+
+	pos := 0
+	for _, lazy := range d.Ways {
+		colorkey := colorkeys[pos]
+		block := d.ReadBlock(*lazy)
+		if len(block.Primitivegroup) > 0 {
+			for _, way := range block.Primitivegroup[0].Ways {
+				// getting keys
+				mymap := map[string]interface{}{}
+				for i := range way.Keys {
+					keypos, valpos := way.Keys[i], way.Vals[i]
+					mymap[block.Stringtable.S[keypos]] = block.Stringtable.S[valpos]
+				}
+				refs := way.Refs
+				oldref := refs[0]
+				pos := 1
+				newrefs := make([]int, len(refs))
+				newrefs[0] = int(refs[0])
+				for _, ref := range refs[1:] {
+					ref = ref + oldref
+					newrefs[pos] = int(ref)
+					pos++
+					oldref = ref
+				}
+				mymap["COLORKEY"] = colorkey
+				mymap["POSITION"] = lazy.Position
+				line := make([][]float64, len(newrefs))
+
+				for pos, i := range newrefs {
+					line[pos] = d.GetNode(i)
+				}
+
+				feature := geojson.NewLineStringFeature(line)
+				feature.Properties = mymap
+				d.Geobuf.WriteFeature(feature)
+			}
+		}
+		pos++
+		if pos == sizecolorkeys {
+			pos = 0
+		}
+	}
 }

@@ -146,7 +146,7 @@ func ReadDecoder(f *os.File, limit int) *decoder {
 	blobBuf := make([]byte, MaxBlobSize)
 
 	// read OSMHeader
-	_, blob, _ := d.ReadFileBlock(sizeBuf, headerBuf, blobBuf)
+	_, blob, _, index := d.ReadFileBlock(sizeBuf, headerBuf, blobBuf)
 	//_, blob, _ = d.ReadFileBlock(sizeBuf, headerBuf, blobBuf)
 	//fmt.Println(headerblob)
 	//headerblob2,_ := top_level.GetData(blob)
@@ -159,60 +159,101 @@ func ReadDecoder(f *os.File, limit int) *decoder {
 	filesize := int(fi.Size()) / 1000000
 
 	boolval := true
-	var oldsize int
+	var oldsize int64
+	c := make(chan *LazyPrimitiveBlock)
+	increment := 0
 	for boolval {
 		d.Count++
-		_, _, _ = d.ReadFileBlock(sizeBuf, headerBuf, blobBuf)
-		size := len(d.DenseNodes) + len(d.Ways) + len(d.Relations)
-		if size == oldsize {
+		_, blob, _, index = d.ReadFileBlock(sizeBuf, headerBuf, blobBuf)
+		count := d.Count
+		go func(blob *osmpbf.Blob, index [2]int, count int, c chan *LazyPrimitiveBlock) {
+			if blob != nil {
+				bytevals, err := GetData(blob)
+				if err != nil {
+					fmt.Println(err)
+				}
+				primblock := ReadLazyPrimitiveBlock(pbf.NewPBF(bytevals))
+				primblock.Position = count
+				primblock.FilePos = index
+				c <- &primblock
+
+			} else {
+				c <- &LazyPrimitiveBlock{}
+			}
+
+		}(blob, index, count, c)
+		increment++
+		if increment == 1000 || d.bytesRead == oldsize {
+			for myc := 0; myc < increment; myc++ {
+				primblock := <-c
+				switch primblock.Type {
+				case "DenseNodes":
+					d.DenseNodes[primblock.Position] = primblock
+					d.IdMap.AddBlock(primblock)
+				case "Ways":
+					d.Ways[primblock.Position] = primblock
+					d.WayIdMap.AddBlock(primblock)
+				case "Relations":
+					d.Relations[primblock.Position] = primblock
+				case "Nodes":
+					d.Nodes[primblock.Position] = primblock
+				}
+			}
+			increment = 0
+		}
+		if d.bytesRead == oldsize {
 			boolval = false
 		}
-		oldsize = size
-		fmt.Printf("\r[%dmb/%dmb] read preliminary read with %d fileblocks total", d.bytesRead/1000000, filesize, d.Count)
+		oldsize = d.bytesRead
+		fmt.Printf("\r[%dmb/%dmb] concurrent preliminary read with %d fileblocks total", d.bytesRead/1000000, filesize, d.Count)
 	}
 
 	return d
 }
 
-func (dec *decoder) ReadFileBlock(sizeBuf, headerBuf, blobBuf []byte) (*osmpbf.BlobHeader, *osmpbf.Blob, error) {
+func (dec *decoder) ReadFileBlock(sizeBuf, headerBuf, blobBuf []byte) (*osmpbf.BlobHeader, *osmpbf.Blob, error, [2]int) {
 	blobHeaderSize, err := dec.ReadBlobHeaderSize(sizeBuf)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, err, [2]int{0, 0}
 	}
 	headerBuf = headerBuf[:blobHeaderSize]
 	blobHeader, err := dec.ReadBlobHeader(headerBuf)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, err, [2]int{0, 0}
 	}
 
 	blobBuf = blobBuf[:blobHeader.GetDatasize()]
 	blob, err := dec.ReadBlob(blobHeader, blobBuf)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, err, [2]int{0, 0}
 	}
 
 	dec.bytesRead += 4 + int64(blobHeaderSize)
 	index := [2]int{int(dec.bytesRead), int(dec.bytesRead) + int(blobHeader.GetDatasize())}
 	//dec.DataIndexs = append(dec.DataIndexs, index)
-	primblock := ReadLazyPrimitiveBlock(pbf.NewPBF(dec.ReadDataPos(index)))
-	primblock.Position = dec.Count
-	primblock.FilePos = index
+	/*
+		primblock := ReadLazyPrimitiveBlock(pbf.NewPBF(dec.ReadDataPos(index)))
+		primblock.Position = dec.Count
+		primblock.FilePos = index
 
-	switch primblock.Type {
-	case "DenseNodes":
-		dec.DenseNodes[primblock.Position] = &primblock
-		dec.IdMap.AddBlock(&primblock)
-	case "Ways":
-		dec.Ways[primblock.Position] = &primblock
-		dec.WayIdMap.AddBlock(&primblock)
-	case "Relations":
-		dec.Relations[primblock.Position] = &primblock
-	case "Nodes":
-		dec.Nodes[primblock.Position] = &primblock
-	}
+		switch primblock.Type {
+		case "DenseNodes":
+			dec.DenseNodes[primblock.Position] = &primblock
+			dec.IdMap.AddBlock(&primblock)
+		case "Ways":
+			dec.Ways[primblock.Position] = &primblock
+			dec.WayIdMap.AddBlock(&primblock)
+		case "Relations":
+			dec.Relations[primblock.Position] = &primblock
+		case "Nodes":
+			dec.Nodes[primblock.Position] = &primblock
+		}
 
+		dec.bytesRead += int64(blobHeader.GetDatasize())
+	*/
 	dec.bytesRead += int64(blobHeader.GetDatasize())
-	return blobHeader, blob, nil
+
+	return blobHeader, blob, nil, index
 }
 
 func (dec *decoder) ReadBlobHeaderSize(buf []byte) (uint32, error) {
