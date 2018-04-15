@@ -1,5 +1,13 @@
 package top_level
 
+/*
+This code holds the methods for processing a file block types
+ways and nodes, and provides methods to do these operations concurrently.a
+
+Helper and utility functions are also thrown in here as well.
+
+*/
+
 import (
 	"./osmpbf"
 	//"fmt"
@@ -65,9 +73,7 @@ func (d *decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
 					if d.WriteBool {
 						d.Geobuf.WriteFeature(feature)
 					}
-					//count += 1
 
-					//make(map[string]interface{}, len(keys))
 				}
 				wg.Done()
 			}(way)
@@ -78,7 +84,7 @@ func (d *decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
 	}
 }
 
-// proces multiple
+// proces multiple ways
 func (d *decoder) ProcessMultipleWays(lazys []*LazyPrimitiveBlock) {
 	var wg sync.WaitGroup
 	for _, lazy := range lazys {
@@ -143,7 +149,7 @@ func (d *decoder) ProcessDenseNode(lazy *LazyPrimitiveBlock) {
 	}
 }
 
-//
+// processes multiple dense nodes
 func (d *decoder) ProcessMultipleDenseNode(is []*LazyPrimitiveBlock) {
 	var wg sync.WaitGroup
 	for _, lazy := range is {
@@ -226,6 +232,8 @@ func (d *decoder) ProcessWays2() {
 	}
 	fmt.Println()
 }
+
+// this method processes the ways in a file
 func (d *decoder) ProcessWays() {
 	is := []*LazyPrimitiveBlock{}
 	count := 0
@@ -257,7 +265,7 @@ func (d *decoder) ProcessWays() {
 	fmt.Println()
 }
 
-// processes dense nodes
+// this method processes dense nodes in a file
 func (d *decoder) ProcessDenseNodes() {
 	d.EmptyNodeMap()
 	is := []*LazyPrimitiveBlock{}
@@ -271,7 +279,6 @@ func (d *decoder) ProcessDenseNodes() {
 				d.ProcessMultipleDenseNode(is)
 				is = []*LazyPrimitiveBlock{}
 			}
-
 		}
 		count += 1
 		fmt.Printf("\r[%d/%d] Dense Node Blocks Completed", count, sizedensenodes)
@@ -290,7 +297,9 @@ type WayRow struct {
 	KeyList []int
 }
 
-//
+// assembles the shortest path structure
+// which returns a data structure
+// that will most effecientily traverse way file blocks.
 func (d *decoder) AssembleWays() []ReadWay {
 	d.EmptyNodeMap()
 	waylist := SortKeys(d.Ways)

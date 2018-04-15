@@ -1,5 +1,23 @@
 package top_level
 
+/*
+This code takes assembles a structure that takes a range of ids (being the upper / lower bound)
+of a file block and adds them into a localization struct and can also locate single ids back to a given
+file block. The implementation is relatively simple just a few math.floor()'s of an id in a stacked map.
+
+
+This structure makes it so that every id we localize does have to be iterated through by
+an entire set of id ranges which for every id we need to localize would be ridiculous.
+
+TLDR:
+
+NOTE: THIS IS PSUEDO CODE
+
+IdMap.AddRange(loweridblock,upperidblock)
+IdMap.FindBlock(id) -> return file block position it exists in
+
+*/
+
 import (
 	"fmt"
 	"math"

@@ -1,5 +1,16 @@
 package top_level
 
+/*
+The following code contains all the implementations needed for reading primitive blocks.
+Each of these functions is sort of a itermediary between data types but you can see all of
+them ahve sort of the same implementation.
+
+The LazyPrimitiveBlock is effectively are mapping struct and is very important for the whole implementation.a
+It gives us the context we need to add id ranges to the idmap, and read back the relevant bytes after we've passed it.a
+
+
+*/
+
 import (
 	"fmt"
 	"github.com/murphy214/pbf"
@@ -31,14 +42,9 @@ func NewPrimitiveBlock(pbfval *pbf.PBF) *PrimitiveBlock {
 		}
 
 		pbfval.Pos = endpos
-		//primblock.StringTable = pbfval.ReadPackedString()
 		key, val = pbfval.ReadKey()
 	}
 	if key == 2 && val == 2 {
-		//pbfval.Byte()
-		//fmt.Println(pbfval.ReadVarint())
-		//fmt.Println(pbfval.ReadKey())
-
 		// iterating through each pbf group
 		endpos := pbfval.Pos + pbfval.ReadVarint()
 		grouptype, _ := pbfval.ReadKey()
@@ -79,21 +85,10 @@ func ReadLazyPrimitiveBlock(pbfval *pbf.PBF) LazyPrimitiveBlock {
 	if key == 1 && val == 2 {
 		size := pbfval.ReadVarint()
 		endpos := pbfval.Pos + size
-		/*
-			for pbfval.Pos < endpos {
-				_, _ = pbfval.ReadKey()
-				primblock.StringTable = append(primblock.StringTable, pbfval.ReadString())
-			}
-		*/
 		pbfval.Pos = endpos
-		//primblock.StringTable = pbfval.ReadPackedString()
 		key, val = pbfval.ReadKey()
 	}
 	if key == 2 && val == 2 {
-		//pbfval.Byte()
-		//fmt.Println(pbfval.ReadVarint())
-		//fmt.Println(pbfval.ReadKey())
-
 		// iterating through each pbf group
 		endpos := pbfval.Pos + pbfval.ReadVarint()
 		grouptype, _ := pbfval.ReadKey()
@@ -142,10 +137,6 @@ func NewPrimitiveBlockLazy(pbfval *pbf.PBF) *PrimitiveBlock {
 		key, val = pbfval.ReadKey()
 	}
 	if key == 2 && val == 2 {
-		//pbfval.Byte()
-		//fmt.Println(pbfval.ReadVarint())
-		//fmt.Println(pbfval.ReadKey())
-
 		// iterating through each pbf group
 		endpos := pbfval.Pos + pbfval.ReadVarint()
 		grouptype, _ := pbfval.ReadKey()

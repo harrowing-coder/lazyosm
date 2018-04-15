@@ -1,21 +1,30 @@
 package top_level
 
+/*
+This code implements the top_level decoder data structure. Much of this code was repurposed from:
+https://github.com/qedus/osmpbf
+
+However the code is much different from the original implementation. The code was basically
+used as a template to see how to traversed through a pbf file as osm pbfs arent technically a valid proto file.
+
+
+*/
+
 import (
+	osmpbf "./osmpbf"
 	"bytes"
 	"compress/zlib"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/gogo/protobuf/proto"
+	g "github.com/murphy214/geobuf"
+	m "github.com/murphy214/mercantile"
 	"github.com/murphy214/pbf"
 	"io"
 	"os"
 	"sync"
 	"time"
-	//"github.com/paulmach/osm"
-	osmpbf "./osmpbf"
-	g "github.com/murphy214/geobuf"
-	m "github.com/murphy214/mercantile"
 )
 
 const (
@@ -113,6 +122,7 @@ func (dec *decoder) Close() error {
 	return nil
 }
 
+// reads the data at a given positon and decompresses it
 func (dec *decoder) ReadDataPos(pos [2]int) []byte {
 	buf := make([]byte, int(pos[1]-pos[0]))
 	dec.f.ReadAt(buf, int64(pos[0]))
@@ -130,6 +140,8 @@ func (dec *decoder) ReadDataPos(pos [2]int) []byte {
 	return data
 }
 
+// reads the lazy primitive block and returns the true blue
+// osm primitive block structure
 func (dec *decoder) ReadBlock(lazyprim LazyPrimitiveBlock) *osmpbf.PrimitiveBlock {
 	primblock := &osmpbf.PrimitiveBlock{}
 	err := proto.Unmarshal(dec.ReadDataPos(lazyprim.FilePos), primblock)
@@ -139,6 +151,8 @@ func (dec *decoder) ReadBlock(lazyprim LazyPrimitiveBlock) *osmpbf.PrimitiveBloc
 	return primblock
 }
 
+// reads and maps the decoder struct
+// limit is the limit of node blocks open at one time.
 func ReadDecoder(f *os.File, limit int) *decoder {
 	d := NewDecoder(f, limit)
 	sizeBuf := make([]byte, 4)
@@ -147,9 +161,6 @@ func ReadDecoder(f *os.File, limit int) *decoder {
 
 	// read OSMHeader
 	_, blob, _, index := d.ReadFileBlock(sizeBuf, headerBuf, blobBuf)
-	//_, blob, _ = d.ReadFileBlock(sizeBuf, headerBuf, blobBuf)
-	//fmt.Println(headerblob)
-	//headerblob2,_ := top_level.GetData(blob)
 	header, err := DecodeOSMHeader(blob)
 	if err != nil {
 		fmt.Println(err)
@@ -182,7 +193,10 @@ func ReadDecoder(f *os.File, limit int) *decoder {
 			}
 
 		}(blob, index, count, c)
+
 		increment++
+
+		// collecting go functions if 1000 have been started or were at the end
 		if increment == 1000 || d.bytesRead == oldsize {
 			for myc := 0; myc < increment; myc++ {
 				primblock := <-c
@@ -230,27 +244,7 @@ func (dec *decoder) ReadFileBlock(sizeBuf, headerBuf, blobBuf []byte) (*osmpbf.B
 
 	dec.bytesRead += 4 + int64(blobHeaderSize)
 	index := [2]int{int(dec.bytesRead), int(dec.bytesRead) + int(blobHeader.GetDatasize())}
-	//dec.DataIndexs = append(dec.DataIndexs, index)
-	/*
-		primblock := ReadLazyPrimitiveBlock(pbf.NewPBF(dec.ReadDataPos(index)))
-		primblock.Position = dec.Count
-		primblock.FilePos = index
 
-		switch primblock.Type {
-		case "DenseNodes":
-			dec.DenseNodes[primblock.Position] = &primblock
-			dec.IdMap.AddBlock(&primblock)
-		case "Ways":
-			dec.Ways[primblock.Position] = &primblock
-			dec.WayIdMap.AddBlock(&primblock)
-		case "Relations":
-			dec.Relations[primblock.Position] = &primblock
-		case "Nodes":
-			dec.Nodes[primblock.Position] = &primblock
-		}
-
-		dec.bytesRead += int64(blobHeader.GetDatasize())
-	*/
 	dec.bytesRead += int64(blobHeader.GetDatasize())
 
 	return blobHeader, blob, nil, index

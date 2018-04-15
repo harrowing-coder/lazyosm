@@ -1,5 +1,13 @@
 package top_level
 
+/*
+This code takes a set of node ids (rings edges w/e) and returns
+a set of completed or polygons or multipolygons. It also contains code for
+loading and generated results from test cases that
+have been written to gob files. (see relation handler)
+
+*/
+
 import (
 	"bytes"
 	"encoding/gob"
@@ -67,49 +75,6 @@ func Satisfy(member []int) bool {
 	return member[0] == member[len(member)-1]
 
 }
-
-/*
-func Collision2(ring1 []int, ring2 []int) ([]int, bool, bool) {
-	total := []int{}
-	boolval := false
-	if Satisify2(ring1, ring2) {
-
-		lastpt := ring1[len(ring1)-1]
-		if lastpt == ring2[0] {
-			total = append(ring1, ring2...)
-			boolval = true
-			fmt.Println("error 1")
-		} else if lastpt == ring2[len(ring2)-1] {
-			fmt.Print("error 2")
-			total = append(ring1, Reverse(ring2)...)
-			boolval = true
-		} else {
-			if ring1[0] == ring2[0] {
-				fmt.Println("error 3")
-				total = append(ring1, Reverse(ring2)...)
-				boolval = true
-			} else if ring1[0] == ring2[len(ring2)-1] {
-				total = append(ring1, Reverse(ring2)...)
-				boolval = true
-				fmt.Println("error4")
-			} else {
-				fmt.Println(ring1[0], ring1[len(ring1)-1], ring2[0], ring2[len(ring2)-1])
-			}
-
-		}
-	}
-	if len(total) == 0 {
-		return []int{}, false, false
-	} else {
-		if total[0] == total[len(total)-1] {
-			fmt.Println(total, ring2, total[0], total[len(total)-1])
-		}
-
-	}
-	return total, boolval, total[0] != total[len(total)-1]
-
-}
-*/
 
 func SortedMap(mymap map[int][]int) []int {
 	newlist := make([]int, len(mymap))

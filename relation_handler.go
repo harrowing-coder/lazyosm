@@ -1,5 +1,13 @@
 package top_level
 
+/*
+This file effectively holds the code for handling relations. Relations are
+shitty because they point back to ways that point back nodes, which requires a lot of i/o and record
+keeping. This file holds the compresensions to create the multipolygon relations as well as the code to
+generate test cases which also pretty important.
+
+*/
+
 import (
 	"./osmpbf"
 	"bytes"
@@ -267,64 +275,6 @@ func (d *decoder) CreateTestCaseBlock(key int, idmap map[int]string) {
 				outfilenodemap := fmt.Sprintf("test_cases/%d_nodemap.gob", int(way.Id))
 				ioutil.WriteFile(outfilenodemap, network2.Bytes(), 0677)
 
-				/*
-					// dealing with roles and getting nodes
-					inners = Connect(inners)
-					outers2 = Connect(outers2)
-					innermap := map[int][][]float64{}
-					outers := [][][]float64{}
-					for pos, inner := range inners {
-						ring := make([][]float64, len(inner))
-						for pos, node := range inner {
-							ring[pos] = RoundPt(d.GetNode(node))
-						}
-						innermap[pos] = ring
-					}
-
-					// changing the outer from nodes to float
-					for _, outer := range outers2 {
-						ring := make([][]float64, len(outer))
-						for pos, node := range outer {
-							ring[pos] = RoundPt(d.GetNode(node))
-						}
-						outers = append(outers, ring)
-					}
-
-					// collecting each raw polygon
-					//  non determining how to handle each outer ring and how to manipluate it
-					polygons := [][][][]float64{}
-					for _, outer := range outers {
-						newpolygon := [][][]float64{outer}
-						for id, inner := range innermap {
-							boolval := Poly(outer).Within(Poly(inner))
-							if boolval {
-								newpolygon = append(newpolygon, inner)
-								delete(innermap, id)
-							}
-						}
-						polygons = append(polygons, newpolygon)
-					}
-
-					// unpacking tags
-					mymap := map[string]interface{}{}
-					for i := range way.Keys {
-						keypos, valpos := way.Keys[i], way.Vals[i]
-						mymap[st[keypos]] = st[valpos]
-					}
-
-					// ensuring were dealing with a multipolygno
-					if len(polygons) > 0 && mymap["type"] == "multipolygon" {
-						if len(polygons) == 1 {
-							featpolygon := geojson.NewPolygonFeature(polygons[0])
-							featpolygon.Properties = mymap
-							d.Geobuf.WriteFeature(featpolygon)
-						} else {
-							featpolygon := geojson.NewMultiPolygonFeature(polygons...)
-							featpolygon.Properties = mymap
-							d.Geobuf.WriteFeature(featpolygon)
-						}
-					}
-				*/
 			}
 		}
 	}
@@ -334,7 +284,6 @@ func (d *decoder) CreateTestCaseBlock(key int, idmap map[int]string) {
 func (d *decoder) ProcessRelationBlock(key int, blockcount int) {
 	primblock := d.Relations[key]
 
-	//d.SyncWaysNodeMapMultiple(stringval, d.IdMap)
 	// reading the primitive relation block
 	pb := d.ReadBlock(*primblock)
 	relations := pb.Primitivegroup[0].Relations
@@ -550,13 +499,10 @@ func (d *decoder) ProcessRelationBlock(key int, blockcount int) {
 func (d *decoder) ProcessRelations() {
 	fmt.Println()
 	relationlist := SortKeys(d.Relations)
-	//boolval5 := false
 
 	// reading through each relation block
-	//sizerelation := len(relationlist)
 	for i, key := range relationlist {
 		d.ProcessRelationBlock(key, i)
-		//fmt.Printf("\r[%d/%d] Processing Relations", i, sizerelation)
 	}
 	fmt.Println()
 }

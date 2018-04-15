@@ -141,7 +141,6 @@ func (pathing *Pathing) GetDif(ys []byte, myfunc func(xs, ys []byte) int) {
 		for pos, wayblock := range pathing.WayBlocks {
 			go func(pos int, wayblock WayBlock, c chan OutputDif) {
 				c <- OutputDif{Pos: pos, Dif: myfunc(wayblock.Binary, ys)}
-				//pathing.WayBlocks[pos] = wayblock
 			}(pos, wayblock, c)
 		}
 		for range pathing.WayBlocks {
@@ -153,7 +152,6 @@ func (pathing *Pathing) GetDif(ys []byte, myfunc func(xs, ys []byte) int) {
 		for pos, wayblock := range pathing.WayBlocks[bump:] {
 			go func(pos int, wayblock WayBlock, c chan OutputDif) {
 				c <- OutputDif{Pos: pos, Dif: myfunc(wayblock.Binary, ys)}
-				//pathing.WayBlocks[pos] = wayblock
 			}(pos, wayblock, c)
 		}
 		for range pathing.WayBlocks[bump:] {
@@ -171,8 +169,6 @@ func (pathing *Pathing) GetMinDif() {
 	addrow := pathing.WayBlocks[len(pathing.WayBlocks)-1]
 	pathing.PathBlocks = append(pathing.PathBlocks, addrow)
 	pathing.WayBlocks = pathing.WayBlocks[:len(pathing.WayBlocks)-1]
-	//pathing.AddRemove(addrow)
-
 }
 
 // gets top difference between the whole wwayblock set
@@ -215,7 +211,6 @@ func (pathing *Pathing) Path() {
 	for len(pathing.WayBlocks) != 0 {
 		pathing.GetMinDif()
 		fmt.Printf("\rCreating Shortest Path [%d/%d]", len(pathing.PathBlocks), totalmapsize)
-		//fmt.Println(len(pathing.WayBlocks))
 	}
 	fmt.Println()
 }

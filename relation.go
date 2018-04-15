@@ -1,5 +1,10 @@
 package top_level
 
+/*
+This code contains the one read relation implementation, that is implemented lazily.a
+
+*/
+
 //import "fmt"
 
 func (d *decoder) ReadRelationsLazy(lazy *LazyPrimitiveBlock) map[int]int {

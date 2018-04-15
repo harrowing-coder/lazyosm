@@ -1,5 +1,12 @@
 package top_level
 
+/*
+This structure manages a priority of queue of nodes and removes / adds nodemap to the total nodemap
+accordingly. So you hand it a set of nodes to add to the nodemap, and it pushes out lowest in the priority
+queue accordingly. This manages the bulk of i/o that we do.
+
+*/
+
 import "fmt"
 import "sort"
 
@@ -76,7 +83,7 @@ func (d *decoder) AddUpdate(position int) {
 	}
 }
 
-var debug = true
+var debug = false
 
 // gets the node for a given relationship
 func (d *decoder) GetNode(id int) []float64 {
@@ -100,7 +107,11 @@ type OutputStruct struct {
 	Priority int
 }
 
-//
+// this adds a list of nodes to the node map
+// the node map is pretty fault tolerant, if you hand it soemthing over the nodemap limit
+// it will read them all in as it assumes there needed
+// i.e. you have a limit of 2000 and you input 2121 node ids it will add all those to
+// the map
 func (d *decoder) AddUpdates(stringval []int) {
 	hits := d.NodeMap
 
@@ -131,8 +142,8 @@ func (d *decoder) AddUpdates(stringval []int) {
 			hits.HitMap[k] = v + size
 		}
 	}
-	//fmt.Println(len(dups), len(stringval))
-	//fmt.Println(stringval)
+
+	// corner cases for all the ways nodes can come in
 	if len(dups)+len(stringval) > hits.Limit {
 		for k := range hits.HitMap {
 			_, boolval := dupmap[k]
@@ -180,14 +191,11 @@ func (d *decoder) AddUpdates(stringval []int) {
 		}
 
 	}
+
 	// finally reading each added value concurrently
 	c := make(chan OutputStruct)
 	for i, intval := range stringval {
 		lazy, boolval := d.DenseNodes[intval]
-		//fmt.Println(lazy, boolval)
-		//lazy = &LazyPrimitiveBlock{Position: intval}
-		//lazy.Position = intval
-		//boolval = true
 		go func(i int, lazy *LazyPrimitiveBlock, boolval bool, c chan OutputStruct) {
 			if !boolval {
 				c <- OutputStruct{}
@@ -211,7 +219,5 @@ func (d *decoder) AddUpdates(stringval []int) {
 	}
 
 	d.NodeMap = hits
-
-	//fmt.Println(len(d.NodeMap.NodeMap))
 
 }
