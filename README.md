@@ -4,6 +4,14 @@
 
 Lazyosm is something I've been half attempting to do for a while, it attempts to create a relational model of all the file blocks and the underlying osm pbf file structure to properly utilize assembling features as quickly as possible. This differs drastically from other go implementations of osm data that purely go for memory through of primitive features which doesn't do you a whole lot of good if your node for a way is 100 million primitive features from one another. 
 
+## What it does currently
+
+Currently its uses are pretty limited, the only output that exists for pure features is a geobuf output format in which features are iteratively written, as it sits this is an extremely bare bones api and doesn't have end points for things like mapping yet. This library has uses that go beyond just pushing a mapping into an sql though, a flat map that can be utilized for each block and get a specific kind of feature can be implemented as well. 
+
+# Caveats
+
+Corner cases exist in multipolygons, and I have no idea what the hell I'm doing with area / specific tags from ways other than area = 'yes' to many corner cases currently, and the osm documentation for what tags dictate what are sort of esoteric. 
+
 # Implementation Notes
 
 I've hacked on this quite a bit so here are some scattered thoughts about what does what how and why. 
@@ -27,13 +35,20 @@ Need to get a few pesky buts though.
 
 # Relations 
 
-Relations I'm kicking around but I think I know what I'm going to do. 
-
+DONE - Corners cases exist and needs to be optimized pretty slow. 
 
 # Mapping functionality
 
-Obviously the goal of this is to abstract to something like importosm3 with a mapping structure and all of that. This shouldn't be hard again just something I have to think about implementing correctly. 
+NOT DONE - relatively easy other than the code being in a few different places
 
 # Performance 
 
-Don't ask IDK. From just eyeballing it against other things I've seen it seems like its really fast and this is completely unoptimized, currently just trying to get things working. 
+**I can pretty confidently say that for the use case of limited size memory and disk space, that this should be pretty easily the fastest implementation for traversing pbf files and creating features at least in go. Especially when I implement string table scan against blocks lazily, it should easily be the best for broad searches across large pbf files for specific tagsets.**
+
+The largest chunk of time generally speaking for a read intake to geobuf is generally the way node traversal as this has the largest amount of i/o between different node blocks. To remedy this I implemented an algorithm that calculates the shortest path for traversing a set way nodes given the node id blocks that exist within them. This basically simplifies or translates to a traveling sales man like algorithm in which we are optimizing for block i/o. (i.e. read / write / gc) In order to speed up the shortest path alg. assumptions were made and shortcuts were taken because if not the shortest path alg. could end up eating a substantial amount of computing time as its a stateful algorithm and can't be easily parrelized. (i.e. the last way added is needed to see which is optimal to come next) 
+
+# To-Dos 
+
+* Its really shitty I have so many dependencies for this project, but many of them are pretty essential geobuf for faster writes geojson as its basically my end structure, and pbf to read the raw pbf values lazily are all pretty essential to how this library is implemented. The only one maybe worth dropping is mercantile as its not really used in a meanful way.
+
+* Clean up code implementations are scattered all of over the place. 
