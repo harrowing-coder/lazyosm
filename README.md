@@ -1,4 +1,5 @@
 # lazyosm - Lazily creates end user geojson features from osm datasets 
+[![GoDoc](https://img.shields.io/badge/api-reference-blue.svg?style=flat-square)](https://godoc.org/github.com/murphy214/lazyosm)
 
 This project could be much more mature than it currently is, I think all the stuff it does is super cool, but is a little to verbose to explain in a read me. Basically lazyosm reads each file block containing 8000 primitive osm features lazily maps those to id ranges and enables one to filter, build, and write out end user osm features as geojson much much faster than any methodology I've seen. 
 
