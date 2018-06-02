@@ -9,10 +9,10 @@ generate test cases which also pretty important.
 */
 
 import (
-	"./osmpbf"
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"github.com/murphy214/lazyosm/osmpbf"
 	"github.com/paulmach/go.geojson"
 	"io/ioutil"
 	"math"

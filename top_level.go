@@ -11,7 +11,6 @@ used as a template to see how to traversed through a pbf file as osm pbfs arent 
 */
 
 import (
-	osmpbf "./osmpbf"
 	"bytes"
 	"compress/zlib"
 	"encoding/binary"
@@ -19,6 +18,7 @@ import (
 	"fmt"
 	"github.com/gogo/protobuf/proto"
 	g "github.com/murphy214/geobuf"
+	osmpbf "github.com/murphy214/lazyosm/osmpbf"
 	m "github.com/murphy214/mercantile"
 	"github.com/murphy214/pbf"
 	"io"
@@ -98,7 +98,7 @@ type decoder struct {
 }
 
 // newDecoder returns a new decoder that reads from r.
-func NewDecoder(f *os.File, limit int) *decoder {
+func NewDecoder(f *os.File, limit int, outfilename string) *decoder {
 	return &decoder{
 		r:           f,
 		f:           f,
@@ -110,7 +110,7 @@ func NewDecoder(f *os.File, limit int) *decoder {
 		IdMap:       NewIdMap(),
 		WayIdMap:    NewIdMap(),
 		RelationMap: map[int]string{},
-		Geobuf:      g.WriterFileNew("a.geobuf"),
+		Geobuf:      g.WriterFileNew(outfilename),
 		Limit:       limit,
 		WriteBool:   true,
 	}
@@ -153,8 +153,8 @@ func (dec *decoder) ReadBlock(lazyprim LazyPrimitiveBlock) *osmpbf.PrimitiveBloc
 
 // reads and maps the decoder struct
 // limit is the limit of node blocks open at one time.
-func ReadDecoder(f *os.File, limit int) *decoder {
-	d := NewDecoder(f, limit)
+func ReadDecoder(f *os.File, limit int, outfilename string) *decoder {
+	d := NewDecoder(f, limit, outfilename)
 	sizeBuf := make([]byte, 4)
 	headerBuf := make([]byte, MaxBlobHeaderSize)
 	blobBuf := make([]byte, MaxBlobSize)

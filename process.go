@@ -9,7 +9,7 @@ Helper and utility functions are also thrown in here as well.
 */
 
 import (
-	"./osmpbf"
+	"github.com/murphy214/lazyosm/osmpbf"
 	//"fmt"
 	//g "github.com/murphy214/geobuf"
 	"github.com/paulmach/go.geojson"
@@ -71,6 +71,7 @@ func (d *decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
 						feature.Properties = mymap
 					}
 					if d.WriteBool {
+						//fmt.Println(line)
 						d.Geobuf.WriteFeature(feature)
 					}
 
@@ -331,7 +332,7 @@ func (d *decoder) AssembleWays() []ReadWay {
 // processes the osm pbf file
 func (d *decoder) ProcessFile() {
 	// processing relations
-	//d.ProcessRelations()
+	d.ProcessRelations()
 
 	// procesing ways
 	d.ProcessWays()

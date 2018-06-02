@@ -83,7 +83,7 @@ func (d *decoder) AddUpdate(position int) {
 	}
 }
 
-var debug = false
+var debug = true
 
 // gets the node for a given relationship
 func (d *decoder) GetNode(id int) []float64 {
@@ -93,7 +93,7 @@ func (d *decoder) GetNode(id int) []float64 {
 		if boolval {
 			return val
 		} else {
-			fmt.Println(boolval, id2, id, "Not found")
+			fmt.Println("\n", boolval, id2, id, "Not found", d.IdMap.GetBlock(id))
 		}
 	} else {
 		return d.NodeMap.NodeMap[d.IdMap.GetBlock(id)][id]
