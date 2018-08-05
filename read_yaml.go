@@ -1,4 +1,4 @@
-package map_osm
+package top_level
 
 import (
 	"fmt"
