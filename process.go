@@ -29,10 +29,12 @@ func (d *decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
 			go func(way *osmpbf.Way) {
 				// getting keys
 				mymap := map[string]interface{}{}
+
 				for i := range way.Keys {
 					keypos, valpos := way.Keys[i], way.Vals[i]
 					mymap[block.Stringtable.S[keypos]] = block.Stringtable.S[valpos]
 				}
+
 				refs := way.Refs
 				oldref := refs[0]
 				pos := 1
@@ -62,7 +64,8 @@ func (d *decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
 
 					var feature *geojson.Feature
 					//_,boundarybool := mymap[`boundary`]
-					if (closedbool == true) || mymap[`building`] == "yes" {
+
+					if (closedbool == true) && mymap["area"] != "no" {
 						feature = geojson.NewPolygonFeature([][][]float64{line})
 						feature.Properties = mymap
 
@@ -245,15 +248,18 @@ func (d *decoder) ProcessWays() {
 	for _, read := range reads {
 
 		keylist := make([]int, len(read.Nodes))
+		//fmt.Println(read.Nodes)
+		//fmt.Println(len(keylist))
 		i := 0
 		for k := range read.Nodes {
 			keylist[i] = k
 			i++
 		}
+
 		d.AddUpdates(keylist)
 		for pos, i := range read.Ways {
 			is = append(is, d.Ways[i])
-			if len(is) == 20 || pos == len(read.Ways)-1 {
+			if len(is) == 50 || pos == len(read.Ways)-1 {
 				//d.SyncWaysNodeMapMultiple(is, d.IdMap)
 				d.ProcessMultipleWays(is)
 				is = []*LazyPrimitiveBlock{}

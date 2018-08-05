@@ -247,11 +247,15 @@ func (pathing *Pathing) CreateReads() []ReadWay {
 			for k := range tempnew {
 				newnodemap[k] = ""
 			}
-			totalreads = append(totalreads, ReadWay{Ways: tempways, Nodes: newnodemap})
 
-			nodemap = newnodemap
-			tempways = []int{}
-			tempexisting, tempnew = map[int]string{}, map[int]string{}
+			if len(newnodemap) > pathing.Limit {
+				totalreads = append(totalreads, ReadWay{Ways: tempways, Nodes: newnodemap})
+				nodemap = newnodemap
+				///fmt.Println(len(nodemap))
+				tempways = []int{}
+				tempexisting, tempnew = map[int]string{}, map[int]string{}
+
+			}
 		}
 	}
 	return totalreads
