@@ -16,4 +16,22 @@ As far as feature building and writing out to a geobuf file (geojson) this proje
 
 Well first off I work in a Civil Engineering not software so I'm sort of relegated to weekends however, the real reason I've sort of stopped development on this project is I see the convergance of a few different file formats and geographical representations that I want to build a stack around. (geobuf,vector-tiles,geojson-vt features) Generally I kind of just build something but I feel like a more pragmatic approach to something like feature filtering could save me a lot of trouble in the future. 
 
+### Install 
+
+```
+go get -u github.com/murphy214/lazyosm
+```
+
+### CLI - Usage 
+
+For a minimal example I implemented a cli interface to dump raw geojson features to a file from a pbf geofabrik file. Download the vermont pbf [here](http://download.geofabrik.de/north-america/us/vermont-latest.osm.pbf). Then navigate to where that file is located in your terminal.
+
+```
+lazyosm make -f vermont-latest.osm.pbf -o vermont-out.geojson
+```
+
+Will create the applicable geojson file. 
+
+
+
 
