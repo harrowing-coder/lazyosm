@@ -1,4 +1,4 @@
-package top_level
+package osm
 
 /*
 This code implements the top_level decoder data structure. Much of this code was repurposed from:
@@ -68,25 +68,24 @@ type iPair struct {
 
 // A Decoder reads and decodes OpenStreetMap PBF data from an input stream.
 type decoder struct {
-	Header       *Header
-	r            io.Reader
-	bytesRead    int64
-	Count        int
-	DenseNodes   map[int]*LazyPrimitiveBlock // data structure for holding lazy dense nodes
-	Ways         map[int]*LazyPrimitiveBlock // data structure for holding lazy ways
-	Relations    map[int]*LazyPrimitiveBlock // data structure for holding lazy relations
-	Nodes        map[int]*LazyPrimitiveBlock // data structure for holding nodes
-	IdMap        *IdMap                      // the id map for nodes (see idmap.go)
-	WayIdMap     *IdMap                      // the id map for ways (see idmap.go)
-	NodeMap      *NodeMap                    // the nodemap for nodes
-	RelationMap  map[int]string              // the map for indicating whether a way is used in a relation
-	Limit        int                         // the limit of how many nodes or ways can be in a map at once
-	Geobuf       *g.Writer                   // the output writer that currently exists
-	WriteBool    bool
-	TotalMemory  int // the total memory throughput
-	cancel       func()
-	wg           sync.WaitGroup
-	TableMapping *TableMapping
+	Header      *Header
+	r           io.Reader
+	bytesRead   int64
+	Count       int
+	DenseNodes  map[int]*LazyPrimitiveBlock // data structure for holding lazy dense nodes
+	Ways        map[int]*LazyPrimitiveBlock // data structure for holding lazy ways
+	Relations   map[int]*LazyPrimitiveBlock // data structure for holding lazy relations
+	Nodes       map[int]*LazyPrimitiveBlock // data structure for holding nodes
+	IdMap       *IdMap                      // the id map for nodes (see idmap.go)
+	WayIdMap    *IdMap                      // the id map for ways (see idmap.go)
+	NodeMap     *NodeMap                    // the nodemap for nodes
+	RelationMap map[int]string              // the map for indicating whether a way is used in a relation
+	Limit       int                         // the limit of how many nodes or ways can be in a map at once
+	Geobuf      *g.Writer                   // the output writer that currently exists
+	WriteBool   bool
+	TotalMemory int // the total memory throughput
+	cancel      func()
+	wg          sync.WaitGroup
 
 	// for data decoders
 	inputs []chan<- iPair
@@ -154,10 +153,9 @@ func (dec *decoder) ReadBlock(lazyprim LazyPrimitiveBlock) *osmpbf.PrimitiveBloc
 
 // reads and maps the decoder struct
 // limit is the limit of node blocks open at one time.
-func ReadDecoder(f *os.File, limit int, outfilename string, yamlfilename string) *decoder {
+func ReadDecoder(f *os.File, limit int, outfilename string) *decoder {
 
 	d := NewDecoder(f, limit, outfilename)
-	d.TableMapping = ReadYamlMapping(yamlfilename)
 	sizeBuf := make([]byte, 4)
 	headerBuf := make([]byte, MaxBlobHeaderSize)
 	blobBuf := make([]byte, MaxBlobSize)
@@ -226,6 +224,13 @@ func ReadDecoder(f *os.File, limit int, outfilename string, yamlfilename string)
 	}
 
 	return d
+}
+
+// creates an output geobuf file
+func MakeOutputGeobuf(infilename string, outfilename string, limit int) {
+	f, _ := os.Open(infilename)
+	d := ReadDecoder(f, limit, outfilename)
+	d.ProcessFile()
 }
 
 func (dec *decoder) ReadFileBlock(sizeBuf, headerBuf, blobBuf []byte) (*osmpbf.BlobHeader, *osmpbf.Blob, error, [2]int) {

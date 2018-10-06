@@ -1,4 +1,4 @@
-package top_level
+package osm
 
 /*
 This code takes a set of node ids (rings edges w/e) and returns

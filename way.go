@@ -1,4 +1,4 @@
-package top_level
+package osm
 
 /*
 This file implements methods for reading ways in different contexts.

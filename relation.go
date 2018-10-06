@@ -1,4 +1,4 @@
-package top_level
+package osm
 
 /*
 This code contains the one read relation implementation, that is implemented lazily.a

@@ -1,4 +1,4 @@
-package top_level
+package osm
 
 /*
 The following code contains all the implementations needed for reading primitive blocks.

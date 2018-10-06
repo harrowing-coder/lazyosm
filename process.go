@@ -1,4 +1,4 @@
-package top_level
+package osm
 
 /*
 This code holds the methods for processing a file block types
@@ -34,6 +34,7 @@ func (d *decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
 					keypos, valpos := way.Keys[i], way.Vals[i]
 					mymap[block.Stringtable.S[keypos]] = block.Stringtable.S[valpos]
 				}
+				mymap["osmid"] = int(way.Id)
 
 				refs := way.Refs
 				oldref := refs[0]
@@ -138,7 +139,7 @@ func (d *decoder) ProcessDenseNode(lazy *LazyPrimitiveBlock) {
 		//info := extractDenseInfo(st, &state, di, index, dateGranularity)
 		if len(tags) != 0 {
 			//id, latitude, longitude, tags
-			mymap := map[string]interface{}{"id": id}
+			mymap := map[string]interface{}{"osm_id": id}
 			for k, v := range tags {
 				mymap[k] = v
 			}

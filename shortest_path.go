@@ -1,4 +1,4 @@
-package top_level
+package osm
 
 /*
 This file contains the shortest path traversal algorithms for which way to go about implementing way traversal
@@ -248,7 +248,7 @@ func (pathing *Pathing) CreateReads() []ReadWay {
 				newnodemap[k] = ""
 			}
 
-			if len(newnodemap) > pathing.Limit {
+			if len(newnodemap) > pathing.Limit || pos == len(pathing.PathBlocks)-1 {
 				totalreads = append(totalreads, ReadWay{Ways: tempways, Nodes: newnodemap})
 				nodemap = newnodemap
 				///fmt.Println(len(nodemap))

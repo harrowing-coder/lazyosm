@@ -1,4 +1,4 @@
-package top_level
+package osm
 
 /*
 This structure manages a priority of queue of nodes and removes / adds nodemap to the total nodemap

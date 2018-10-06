@@ -1,4 +1,4 @@
-package top_level
+package osm
 
 /*
 This file effectively holds the code for handling relations. Relations are

@@ -1,4 +1,4 @@
-package top_level
+package osm
 
 /*
 This code takes assembles a structure that takes a range of ids (being the upper / lower bound)
