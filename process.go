@@ -46,39 +46,38 @@ func (d *decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
 					pos++
 					oldref = ref
 				}
+				//_, boolval := d.RelationMap[int(way.Id)]
+				//if !boolval {
 
-				_, boolval := d.RelationMap[int(way.Id)]
-				if !boolval {
+				line := make([][]float64, len(newrefs))
 
-					line := make([][]float64, len(newrefs))
-
-					for pos, i := range newrefs {
-						line[pos] = d.GetNode(i)
-					}
-
-					closedbool := false
-					// checking if closed way
-					if newrefs[0] == newrefs[len(newrefs)-1] {
-						closedbool = true
-					}
-
-					var feature *geojson.Feature
-					//_,boundarybool := mymap[`boundary`]
-
-					if (closedbool == true) && mymap["area"] != "no" {
-						feature = geojson.NewPolygonFeature([][][]float64{line})
-						feature.Properties = mymap
-
-					} else {
-						feature = geojson.NewLineStringFeature(line)
-						feature.Properties = mymap
-					}
-					if d.WriteBool {
-						//fmt.Println(line)
-						d.Geobuf.WriteFeature(feature)
-					}
-
+				for pos, i := range newrefs {
+					line[pos] = d.GetNode(i)
 				}
+
+				closedbool := false
+				// checking if closed way
+				if newrefs[0] == newrefs[len(newrefs)-1] {
+					closedbool = true
+				}
+
+				var feature *geojson.Feature
+				//_,boundarybool := mymap[`boundary`]
+
+				if (closedbool == true) && mymap["area"] != "no" {
+					feature = geojson.NewPolygonFeature([][][]float64{line})
+					feature.Properties = mymap
+				} else {
+					feature = geojson.NewLineStringFeature(line)
+					feature.Properties = mymap
+				}
+
+				if d.WriteBool {
+					//fmt.Println(line)
+					d.Geobuf.WriteFeature(feature)
+				}
+
+				//}
 				wg.Done()
 			}(way)
 
@@ -447,4 +446,106 @@ func (d *decoder) MakeColorWays() {
 			pos = 0
 		}
 	}
+}
+
+// interpolates a colorkey depending on its position in the densenode list
+func Interpolate(pos, limit int) string {
+	val := float64(pos) / float64(limit) * float64(len(colorkeys)-1)
+	return colorkeys[int(Round(val, .5, 0))]
+}
+
+//
+func (d *decoder) MakeColorDenseNodeLines(limit int) []*geojson.Feature {
+	feats := []*geojson.Feature{}
+
+	for pos, lazy := range d.DenseNodes {
+		if pos < limit {
+
+			pb := d.ReadBlock(*lazy)
+			dn := pb.Primitivegroup[0].Dense
+
+			granularity := int64(pb.GetGranularity())
+			latOffset := pb.GetLatOffset()
+			lonOffset := pb.GetLonOffset()
+			//dateGranularity := int64(pb.GetDateGranularity())
+			ids := dn.GetId()
+			lats := dn.GetLat()
+			lons := dn.GetLon()
+			//di := dn.GetDenseinfo()
+
+			var id, lat, lon int64
+			newlist := [][]float64{}
+			for index := range ids {
+				id = ids[index] + id
+				lat = lats[index] + lat
+				lon = lons[index] + lon
+				latitude := 1e-9 * float64((latOffset + (granularity * lat)))
+				longitude := 1e-9 * float64((lonOffset + (granularity * lon)))
+				newlist = append(newlist, []float64{longitude, latitude})
+				//info := extractDenseInfo(st, &state, di, index, dateGranularity)
+				//id, latitude, longitude, tags
+
+			}
+			line := geojson.NewMultiPointFeature(newlist...)
+			mymap := map[string]interface{}{}
+
+			mymap[`COLORKEY`] = Interpolate(pos, limit)
+			mymap[`FILEPOS`] = lazy.FilePos
+			line.Properties = mymap
+			feats = append(feats, line)
+		}
+	}
+	return feats
+}
+
+//
+func (d *decoder) MakeColorDenseNodeLines2(startpos, limit int) []*geojson.Feature {
+	feats := []*geojson.Feature{}
+
+	newlist := make([]int, len(d.DenseNodes))
+	i := 0
+	for k := range d.DenseNodes {
+		newlist[i] = k
+		i++
+	}
+	sort.Ints(newlist)
+	for pos, key := range newlist[startpos:] {
+		lazy := d.DenseNodes[key]
+		if pos < limit {
+
+			pb := d.ReadBlock(*lazy)
+			dn := pb.Primitivegroup[0].Dense
+
+			granularity := int64(pb.GetGranularity())
+			latOffset := pb.GetLatOffset()
+			lonOffset := pb.GetLonOffset()
+			//dateGranularity := int64(pb.GetDateGranularity())
+			ids := dn.GetId()
+			lats := dn.GetLat()
+			lons := dn.GetLon()
+			//di := dn.GetDenseinfo()
+
+			var id, lat, lon int64
+			newlist := [][]float64{}
+			for index := range ids {
+				id = ids[index] + id
+				lat = lats[index] + lat
+				lon = lons[index] + lon
+				latitude := 1e-9 * float64((latOffset + (granularity * lat)))
+				longitude := 1e-9 * float64((lonOffset + (granularity * lon)))
+				newlist = append(newlist, []float64{longitude, latitude})
+				//info := extractDenseInfo(st, &state, di, index, dateGranularity)
+				//id, latitude, longitude, tags
+
+			}
+			line := geojson.NewMultiPointFeature(newlist...)
+			mymap := map[string]interface{}{}
+
+			mymap[`COLORKEY`] = Interpolate(pos, limit)
+			mymap[`FILEPOS`] = lazy.FilePos
+			line.Properties = mymap
+			feats = append(feats, line)
+		}
+	}
+	return feats
 }
