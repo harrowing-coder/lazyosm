@@ -34,7 +34,7 @@ func (d *decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
 					keypos, valpos := way.Keys[i], way.Vals[i]
 					mymap[block.Stringtable.S[keypos]] = block.Stringtable.S[valpos]
 				}
-				mymap["osmid"] = int(way.Id)
+				mymap["osm_id"] = int(way.GetId())
 
 				refs := way.Refs
 				oldref := refs[0]

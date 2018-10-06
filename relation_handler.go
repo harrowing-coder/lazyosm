@@ -411,7 +411,7 @@ func (d *decoder) ProcessRelationBlock(key int, blockcount int) {
 					mymap[st[keypos]] = st[valpos]
 				}
 
-				mymap["osmid"] = int(way.Id)
+				mymap["osm_id"] = int(way.Id)
 
 				// ensuring were dealing with a multipolygno
 				if mymap["type"] == "multipolygon" {
