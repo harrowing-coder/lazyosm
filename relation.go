@@ -7,7 +7,7 @@ This code contains the one read relation implementation, that is implemented laz
 
 //import "fmt"
 
-func (d *decoder) ReadRelationsLazy(lazy *LazyPrimitiveBlock) map[int]int {
+func (d *Decoder) ReadRelationsLazy(lazy *LazyPrimitiveBlock) map[int]int {
 	prim := d.CreatePrimitiveBlock(lazy)
 	prim.Buf.Pos = prim.GroupIndex[0]
 	mymap := map[int]int{}

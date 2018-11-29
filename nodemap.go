@@ -67,12 +67,12 @@ func NewNodeMap(limit int) *NodeMap {
 	return &NodeMap{HitMap: map[int]int{}, Limit: limit, NodeMap: map[int]map[int][]float64{}}
 }
 
-func (d *decoder) EmptyNodeMap() {
+func (d *Decoder) EmptyNodeMap() {
 	d.NodeMap = NewNodeMap(d.Limit)
 }
 
 // adds values to the nodemap
-func (d *decoder) AddUpdate(position int) {
+func (d *Decoder) AddUpdate(position int) {
 	if d.NodeMap.AddUpdate(position) {
 		val, boolval := d.DenseNodes[position]
 		if boolval {
@@ -86,7 +86,7 @@ func (d *decoder) AddUpdate(position int) {
 var debug = true
 
 // gets the node for a given relationship
-func (d *decoder) GetNode(id int) []float64 {
+func (d *Decoder) GetNode(id int) []float64 {
 	if debug == true {
 		id2 := d.IdMap.GetBlock(id)
 		val, boolval := d.NodeMap.NodeMap[id2][id]
@@ -112,7 +112,7 @@ type OutputStruct struct {
 // it will read them all in as it assumes there needed
 // i.e. you have a limit of 2000 and you input 2121 node ids it will add all those to
 // the map
-func (d *decoder) AddUpdates(stringval []int) {
+func (d *Decoder) AddUpdates(stringval []int) {
 	hits := d.NodeMap
 
 	// updating string val so that only new values aree within stringval

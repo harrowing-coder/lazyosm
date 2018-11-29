@@ -19,14 +19,14 @@ func d() {
 }
 
 // create primive block
-func (d *decoder) CreatePrimitiveBlock(lazy *LazyPrimitiveBlock) *PrimitiveBlock {
+func (d *Decoder) CreatePrimitiveBlock(lazy *LazyPrimitiveBlock) *PrimitiveBlock {
 	return &PrimitiveBlock{Buf: pbf.NewPBF(d.ReadDataPos(lazy.FilePos)), GroupIndex: lazy.BufPos, GroupType: 3}
 }
 
 // a lazy map reads an idmap and returns a map nodeid map
 // so reads a way block lazily and returns all the node block positions taht exist within
 // this way block
-func (d *decoder) ReadWaysLazy(lazy *LazyPrimitiveBlock, idmap *IdMap) map[int]string {
+func (d *Decoder) ReadWaysLazy(lazy *LazyPrimitiveBlock, idmap *IdMap) map[int]string {
 	prim := d.CreatePrimitiveBlock(lazy)
 	prim.Buf.Pos = prim.GroupIndex[0]
 	mymap := map[int]string{}
@@ -81,7 +81,7 @@ func (d *decoder) ReadWaysLazy(lazy *LazyPrimitiveBlock, idmap *IdMap) map[int]s
 
 // given a set of ids return the map[wayid][]int node id list map
 // for the given ids input
-func (d *decoder) ReadWaysLazyList(lazy *LazyPrimitiveBlock, ids []int) map[int][]int {
+func (d *Decoder) ReadWaysLazyList(lazy *LazyPrimitiveBlock, ids []int) map[int][]int {
 	idmap := map[int]string{}
 	for _, i := range ids {
 		idmap[i] = ""
@@ -199,7 +199,7 @@ func LazyWayRange(pbfval *pbf.PBF) (int, int) {
 
 // syncs the nodemap against a give way block and flushes old
 // node maps out of memory if needed
-func (d *decoder) SyncWaysNodeMap(lazy *LazyPrimitiveBlock, idmap *IdMap) {
+func (d *Decoder) SyncWaysNodeMap(lazy *LazyPrimitiveBlock, idmap *IdMap) {
 	keymap := d.ReadWaysLazy(lazy, idmap)
 	keylist := make([]int, len(keymap))
 	i := 0
@@ -211,7 +211,7 @@ func (d *decoder) SyncWaysNodeMap(lazy *LazyPrimitiveBlock, idmap *IdMap) {
 }
 
 // syncs multiple way blocks with an idmap
-func (d *decoder) SyncWaysNodeMapMultiple(lazys []*LazyPrimitiveBlock, idmap *IdMap) {
+func (d *Decoder) SyncWaysNodeMapMultiple(lazys []*LazyPrimitiveBlock, idmap *IdMap) {
 	//s := time.Now()
 	keymap := map[int]string{}
 	c := make(chan map[int]string)

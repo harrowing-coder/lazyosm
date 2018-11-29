@@ -20,7 +20,7 @@ import (
 )
 
 // processes a specific way block
-func (d *decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
+func (d *Decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
 	block := d.ReadBlock(*lazy)
 	var wg sync.WaitGroup
 	if len(block.Primitivegroup) > 0 {
@@ -89,7 +89,7 @@ func (d *decoder) ProcessBlockWay(lazy *LazyPrimitiveBlock) {
 }
 
 // proces multiple ways
-func (d *decoder) ProcessMultipleWays(lazys []*LazyPrimitiveBlock) {
+func (d *Decoder) ProcessMultipleWays(lazys []*LazyPrimitiveBlock) {
 	var wg sync.WaitGroup
 	for _, lazy := range lazys {
 		wg.Add(1)
@@ -113,7 +113,7 @@ func extractTags(stringTable []string, keyIDs, valueIDs []uint32) map[string]str
 }
 
 // takes a lazy primitive block and process the points out of it
-func (d *decoder) ProcessDenseNode(lazy *LazyPrimitiveBlock) {
+func (d *Decoder) ProcessDenseNode(lazy *LazyPrimitiveBlock) {
 	pb := d.ReadBlock(*lazy)
 	dn := pb.Primitivegroup[0].Dense
 
@@ -154,7 +154,7 @@ func (d *decoder) ProcessDenseNode(lazy *LazyPrimitiveBlock) {
 }
 
 // processes multiple dense nodes
-func (d *decoder) ProcessMultipleDenseNode(is []*LazyPrimitiveBlock) {
+func (d *Decoder) ProcessMultipleDenseNode(is []*LazyPrimitiveBlock) {
 	var wg sync.WaitGroup
 	for _, lazy := range is {
 		wg.Add(1)
@@ -179,7 +179,7 @@ func SortKeys(mymap map[int]*LazyPrimitiveBlock) []int {
 }
 
 // this reads ways from a decoder
-func (d *decoder) ReadWays() {
+func (d *Decoder) ReadWays() {
 	size := len(d.Ways)
 	waylist := SortKeys(d.Ways)
 	pos := 0
@@ -199,7 +199,7 @@ func (d *decoder) ReadWays() {
 }
 
 // processes ways
-func (d *decoder) ProcessWays2() {
+func (d *Decoder) ProcessWays2() {
 	is := []*LazyPrimitiveBlock{}
 	count := 0
 	count = 0
@@ -238,7 +238,7 @@ func (d *decoder) ProcessWays2() {
 }
 
 // this method processes the ways in a file
-func (d *decoder) ProcessWays() {
+func (d *Decoder) ProcessWays() {
 	is := []*LazyPrimitiveBlock{}
 	count := 0
 	count = 0
@@ -273,7 +273,7 @@ func (d *decoder) ProcessWays() {
 }
 
 // this method processes dense nodes in a file
-func (d *decoder) ProcessDenseNodes() {
+func (d *Decoder) ProcessDenseNodes() {
 	d.EmptyNodeMap()
 	is := []*LazyPrimitiveBlock{}
 	sizedensenodes := len(d.DenseNodes)
@@ -307,7 +307,7 @@ type WayRow struct {
 // assembles the shortest path structure
 // which returns a data structure
 // that will most effecientily traverse way file blocks.
-func (d *decoder) AssembleWays() []ReadWay {
+func (d *Decoder) AssembleWays() []ReadWay {
 	d.EmptyNodeMap()
 	waylist := SortKeys(d.Ways)
 	c := make(chan OutputWay)
@@ -336,7 +336,7 @@ func (d *decoder) AssembleWays() []ReadWay {
 }
 
 // processes the osm pbf file
-func (d *decoder) ProcessFile() {
+func (d *Decoder) ProcessFile() {
 	// processing relations
 	d.ProcessRelations()
 
@@ -348,7 +348,7 @@ func (d *decoder) ProcessFile() {
 }
 
 // makes color key dense nodes
-func (d *decoder) MakeColorDenseNodes() {
+func (d *Decoder) MakeColorDenseNodes() {
 	pos := 0
 	for _, lazy := range d.DenseNodes {
 		colorkey := colorkeys[pos]
@@ -399,7 +399,7 @@ func (d *decoder) MakeColorDenseNodes() {
 }
 
 // make colorkey ways
-func (d *decoder) MakeColorWays() {
+func (d *Decoder) MakeColorWays() {
 	newlist := []int{}
 	for _, i := range d.DenseNodes {
 		newlist = append(newlist, i.Position)
@@ -456,7 +456,7 @@ func Interpolate(pos, limit int) string {
 }
 
 //
-func (d *decoder) MakeColorDenseNodeLines(limit int) []*geojson.Feature {
+func (d *Decoder) MakeColorDenseNodeLines(limit int) []*geojson.Feature {
 	feats := []*geojson.Feature{}
 
 	for pos, lazy := range d.DenseNodes {
@@ -500,7 +500,7 @@ func (d *decoder) MakeColorDenseNodeLines(limit int) []*geojson.Feature {
 }
 
 //
-func (d *decoder) MakeColorDenseNodeLines2(startpos, limit int) []*geojson.Feature {
+func (d *Decoder) MakeColorDenseNodeLines2(startpos, limit int) []*geojson.Feature {
 	feats := []*geojson.Feature{}
 
 	newlist := make([]int, len(d.DenseNodes))

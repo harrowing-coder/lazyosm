@@ -93,7 +93,7 @@ func (poly Poly) Within(inner Poly) bool {
 }
 
 // processes a block of relations
-func (d *decoder) CreateTestCaseBlock(key int, idmap map[int]string) {
+func (d *Decoder) CreateTestCaseBlock(key int, idmap map[int]string) {
 	primblock := d.Relations[key]
 	//relations := d.ReadBlock(*primblock).Primitivegroup[0].Relations
 	// getting relating map
@@ -281,7 +281,7 @@ func (d *decoder) CreateTestCaseBlock(key int, idmap map[int]string) {
 }
 
 // processes a block of relations
-func (d *decoder) ProcessRelationBlock(key int, blockcount int) {
+func (d *Decoder) ProcessRelationBlock(key int, blockcount int) {
 	primblock := d.Relations[key]
 
 	// reading the primitive relation block
@@ -496,7 +496,7 @@ func (d *decoder) ProcessRelationBlock(key int, blockcount int) {
 }
 
 // this method is designed to hackily handle large relations
-func (d *decoder) ProcessRelations() {
+func (d *Decoder) ProcessRelations() {
 	fmt.Println()
 	relationlist := SortKeys(d.Relations)
 
@@ -508,7 +508,7 @@ func (d *decoder) ProcessRelations() {
 }
 
 // creates test cases for a given id of relationss
-func (d *decoder) CreateTestCases(ids []int) {
+func (d *Decoder) CreateTestCases(ids []int) {
 	os.MkdirAll("test_cases", os.ModePerm)
 
 	// creating id map

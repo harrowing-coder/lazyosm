@@ -67,7 +67,7 @@ type iPair struct {
 }
 
 // A Decoder reads and decodes OpenStreetMap PBF data from an input stream.
-type decoder struct {
+type Decoder struct {
 	Header      *Header
 	r           io.Reader
 	bytesRead   int64
@@ -98,8 +98,8 @@ type decoder struct {
 }
 
 // newDecoder returns a new decoder that reads from r.
-func NewDecoder(f *os.File, limit int, outfilename string) *decoder {
-	return &decoder{
+func NewDecoder(f *os.File, limit int, outfilename string) *Decoder {
+	return &Decoder{
 		r:           f,
 		f:           f,
 		DenseNodes:  map[int]*LazyPrimitiveBlock{},
@@ -116,14 +116,14 @@ func NewDecoder(f *os.File, limit int, outfilename string) *decoder {
 	}
 }
 
-func (dec *decoder) Close() error {
+func (dec *Decoder) Close() error {
 	dec.cancel()
 	dec.wg.Wait()
 	return nil
 }
 
 // reads the data at a given positon and decompresses it
-func (dec *decoder) ReadDataPos(pos [2]int) []byte {
+func (dec *Decoder) ReadDataPos(pos [2]int) []byte {
 	buf := make([]byte, int(pos[1]-pos[0]))
 	dec.f.ReadAt(buf, int64(pos[0]))
 
@@ -142,7 +142,7 @@ func (dec *decoder) ReadDataPos(pos [2]int) []byte {
 
 // reads the lazy primitive block and returns the true blue
 // osm primitive block structure
-func (dec *decoder) ReadBlock(lazyprim LazyPrimitiveBlock) *osmpbf.PrimitiveBlock {
+func (dec *Decoder) ReadBlock(lazyprim LazyPrimitiveBlock) *osmpbf.PrimitiveBlock {
 	primblock := &osmpbf.PrimitiveBlock{}
 	err := proto.Unmarshal(dec.ReadDataPos(lazyprim.FilePos), primblock)
 	if err != nil {
@@ -153,7 +153,7 @@ func (dec *decoder) ReadBlock(lazyprim LazyPrimitiveBlock) *osmpbf.PrimitiveBloc
 
 // reads and maps the decoder struct
 // limit is the limit of node blocks open at one time.
-func ReadDecoder(f *os.File, limit int, outfilename string) *decoder {
+func ReadDecoder(f *os.File, limit int, outfilename string) *Decoder {
 
 	d := NewDecoder(f, limit, outfilename)
 	sizeBuf := make([]byte, 4)
@@ -233,7 +233,7 @@ func MakeOutputGeobuf(infilename string, outfilename string, limit int) {
 	d.ProcessFile()
 }
 
-func (dec *decoder) ReadFileBlock(sizeBuf, headerBuf, blobBuf []byte) (*osmpbf.BlobHeader, *osmpbf.Blob, error, [2]int) {
+func (dec *Decoder) ReadFileBlock(sizeBuf, headerBuf, blobBuf []byte) (*osmpbf.BlobHeader, *osmpbf.Blob, error, [2]int) {
 	blobHeaderSize, err := dec.ReadBlobHeaderSize(sizeBuf)
 	if err != nil {
 		return nil, nil, err, [2]int{0, 0}
@@ -258,7 +258,7 @@ func (dec *decoder) ReadFileBlock(sizeBuf, headerBuf, blobBuf []byte) (*osmpbf.B
 	return blobHeader, blob, nil, index
 }
 
-func (dec *decoder) ReadBlobHeaderSize(buf []byte) (uint32, error) {
+func (dec *Decoder) ReadBlobHeaderSize(buf []byte) (uint32, error) {
 	if _, err := io.ReadFull(dec.r, buf); err != nil {
 		return 0, err
 	}
@@ -270,7 +270,7 @@ func (dec *decoder) ReadBlobHeaderSize(buf []byte) (uint32, error) {
 	return size, nil
 }
 
-func (dec *decoder) ReadBlobHeader(buf []byte) (*osmpbf.BlobHeader, error) {
+func (dec *Decoder) ReadBlobHeader(buf []byte) (*osmpbf.BlobHeader, error) {
 	if _, err := io.ReadFull(dec.r, buf); err != nil {
 		return nil, err
 	}
@@ -286,7 +286,7 @@ func (dec *decoder) ReadBlobHeader(buf []byte) (*osmpbf.BlobHeader, error) {
 	return blobHeader, nil
 }
 
-func (dec *decoder) ReadBlob(blobHeader *osmpbf.BlobHeader, buf []byte) (*osmpbf.Blob, error) {
+func (dec *Decoder) ReadBlob(blobHeader *osmpbf.BlobHeader, buf []byte) (*osmpbf.Blob, error) {
 	if _, err := io.ReadFull(dec.r, buf); err != nil {
 		return nil, err
 	}

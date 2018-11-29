@@ -169,7 +169,7 @@ func (prim *PrimitiveBlock) NewDenseNode() *DenseNode {
 
 // parses a dense node out of a node data structure
 // returns the sparse id point map
-func (d *decoder) NewDenseNodeMap(lazy *LazyPrimitiveBlock) map[int][]float64 {
+func (d *Decoder) NewDenseNodeMap(lazy *LazyPrimitiveBlock) map[int][]float64 {
 	prim := NewPrimitiveBlockLazy(pbf.NewPBF(d.ReadDataPos(lazy.FilePos)))
 	prim.Buf.Pos = prim.GroupIndex[0]
 
