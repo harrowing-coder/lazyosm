@@ -12,10 +12,6 @@ Lazy computation enables you to do some pretty crazy stuff you normally wouldn't
 
 As far as feature building and writing out to a geobuf file (geojson) this project is pretty far along, the only issues that may arise could be in tags indicating what type of feature they actually are, and potentially some multipolygon edge cases I haven't sniffed out yet. (although it actually does pretty good imo) 
 
-#### Why Haven't I Invested More Time In This 
-
-Well first off I work in a Civil Engineering not software so I'm sort of relegated to weekends however, the real reason I've sort of stopped development on this project is I see the convergance of a few different file formats and geographical representations that I want to build a stack around. (geobuf,vector-tiles,geojson-vt features) Generally I kind of just build something but I feel like a more pragmatic approach to something like feature filtering could save me a lot of trouble in the future. 
-
 ### Install 
 
 ```
