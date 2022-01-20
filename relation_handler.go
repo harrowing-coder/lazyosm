@@ -3,7 +3,7 @@ package osm
 /*
 This file effectively holds the code for handling relations. Relations are
 shitty because they point back to ways that point back nodes, which requires a lot of i/o and record
-keeping. This file holds the compresensions to create the multipolygon relations as well as the code to
+keeping. This file holds the compressions to create the multipolygon relations as well as the code to
 generate test cases which also pretty important.
 
 */
